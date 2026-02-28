@@ -642,7 +642,7 @@ position: absolute !important;
 
 
 <script>
- /* 1. 상태 관리 */
+/* 1. 상태 관리 */
 let idCnt = 0, selected = null, mode = 'none', isDrawing = false;
 let zoomScale = 1;
 
@@ -664,52 +664,41 @@ const ctx = drawLayer.getContext('2d');
 window.onload = () => { 
     resizeCanvas(); 
     initDrawing(); 
-    updatePageUI(); // 페이지 목록 초기 표시
+    updatePageUI(); 
     
     requestAnimationFrame(() => {
         manualZoom(1); 
         const ws = document.getElementById('ws-area');
         if (ws) {
             ws.scrollTop = 0;
-            // 줌이 1일 때 중앙 정렬
             ws.scrollLeft = (ws.scrollWidth - ws.clientWidth) / 2;
         }
     });
 };
-
 
 function toggleOri() {
     artboard.classList.toggle('portrait');
     artboard.classList.toggle('landscape');
     setTimeout(() => {
         resizeCanvas();
-        manualZoom(zoomScale); // 회전된 크기에 맞춰 스크롤 영역 재계산
+        manualZoom(zoomScale);
     }, 50);
 }
 
 /* 텍스트 설정 동기화 함수 */
 function syncText() {
-    // 1. 현재 선택된 객체가 있고, 그 타입이 텍스트인지 확인
     if (!selected || selected.d.type !== 'text') return;
+    const el = selected.el;
+    const d = selected.d;
+    const inner = el.querySelector('.text-inner');
 
-    const el = selected.el;      // 전체를 감싸는 .movable 레이어
-    const d = selected.d;        // 데이터 객체
-    const inner = el.querySelector('.text-inner'); // 실제 글자가 적힌 div
+    d.color = document.getElementById('t-color').value;
+    d.size = document.getElementById('t-size').value;
+    d.font = document.getElementById('t-font').value;
 
-    // 2. 입력창에서 값 가져오기
-    const newColor = document.getElementById('t-color').value;
-    const newSize = document.getElementById('t-size').value;
-    const newFont = document.getElementById('t-font').value;
-
-    // 3. 데이터 업데이트
-    d.color = newColor;
-    d.size = newSize;
-    d.font = newFont;
-
-    // 4. 화면(DOM)에 즉시 반영
-    inner.style.color = newColor;
-    inner.style.fontSize = newSize + 'pt';
-    inner.style.fontFamily = newFont;
+    inner.style.color = d.color;
+    inner.style.fontSize = d.size + 'pt';
+    inner.style.fontFamily = d.font;
 }
 
 function resizeCanvas() {
@@ -717,7 +706,7 @@ function resizeCanvas() {
     drawLayer.height = artboard.offsetHeight;
 }
 
-/* 2. 팝업 제어 (사이드바 에셋 & 마스크 통합) */
+/* 2. 팝업 제어 */
 function togglePopup(type, event) {
     if (event) {
         event.preventDefault();
@@ -727,17 +716,14 @@ function togglePopup(type, event) {
     const assetPopup = document.getElementById('asset-popup');
     const maskPopup = document.getElementById('mask-side-popup');
     
-    // 현재 클릭한 팝업의 타겟 결정
     let target = (type === 'mask') ? maskPopup : assetPopup;
     const isOpen = target.classList.contains('active');
 
-    // 1. 모든 팝업 초기화 (다른 창 닫기)
     document.querySelectorAll('.asset-popup, .tool-popup').forEach(p => {
         p.classList.remove('active');
         p.style.display = 'none';
     });
 
-    // 2. 상태에 따라 열기/닫기
     if (!isOpen) {
         if (type === 'img' || type === 'pattern') {
             currentPopupType = type;
@@ -752,7 +738,6 @@ function togglePopup(type, event) {
     }
 }
 
-// 상단 툴바 전용 (기존 로직 유지)
 function toggleToolPopup(e, id) {
     if(e) e.stopPropagation();
     const popup = document.getElementById(id);
@@ -779,18 +764,12 @@ function manualZoom(val) {
     zoomScale = parseFloat(val);
     const engine = document.getElementById('zoom-engine');
     const artboard = document.getElementById('artboard');
-
     if (!engine || !artboard) return;
 
-    // 1. 시각적 확대 적용 (0,0 기준)
     engine.style.transform = `scale(${zoomScale})`;
-    
-    // 2. [수정 핵심] 엔진의 크기를 '배율'로 곱하지 마세요! 
-    // 원본 크기(offsetWidth)로 고정해야 이중 공백이 생기지 않습니다.
     engine.style.width = artboard.offsetWidth + "px";
     engine.style.height = artboard.offsetHeight + "px";
 
-    // 3. 배율 표시 업데이트
     const zoomValDisp = document.getElementById('zoom-val');
     if(zoomValDisp) zoomValDisp.innerText = Math.round(zoomScale * 100) + '%';
 }
@@ -801,7 +780,7 @@ function resetZoom() {
     manualZoom(1); 
 }
 
-/* 4. 그리기 엔진 (기존 로직 보존) */
+/* 4. 그리기 엔진 - [터치 기능 추가] */
 function setDrawMode(m) {
     mode = m;
     drawLayer.classList.toggle('active', m === 'pen' || m === 'eraser');
@@ -809,25 +788,27 @@ function setDrawMode(m) {
     document.getElementById('m-eraser')?.classList.toggle('active', m === 'eraser');
 }
 
-/* 캔버스 그리기 좌표 보정 (줌 배율 반영) */
 function initDrawing() {
     const getXY = (e) => {
         const rect = drawLayer.getBoundingClientRect();
-        // getBoundingClientRect는 화면상의 실제 픽셀을 반환하므로 
-        // 줌 배율로 나누어 원래 아트보드 좌표로 변환
+        // 터치 이벤트인 경우 e.touches[0] 사용
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
         return { 
-            x: (e.clientX - rect.left) / zoomScale, 
-            y: (e.clientY - rect.top) / zoomScale 
+            x: (clientX - rect.left) / zoomScale, 
+            y: (clientY - rect.top) / zoomScale 
         };
     };
     
-    drawLayer.onmousedown = (e) => {
+    const startDrawing = (e) => {
         if(mode !== 'pen' && mode !== 'eraser') return;
         isDrawing = true;
         const p = getXY(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+        e.preventDefault(); // 스크롤 방지
     };
     
-    drawLayer.onmousemove = (e) => {
+    const drawing = (e) => {
         if(!isDrawing) return;
         const p = getXY(e);
         ctx.lineWidth = document.getElementById('p-weight').value;
@@ -840,13 +821,24 @@ function initDrawing() {
             ctx.strokeStyle = document.getElementById('p-color').value;
         }
         ctx.lineTo(p.x, p.y); ctx.stroke();
+        e.preventDefault();
     };
-    drawLayer.onmouseup = () => isDrawing = false;
+    
+    const stopDrawing = () => isDrawing = false;
+
+    // 마우스 + 터치 이벤트 등록
+    drawLayer.addEventListener('mousedown', startDrawing);
+    drawLayer.addEventListener('mousemove', drawing);
+    window.addEventListener('mouseup', stopDrawing);
+
+    drawLayer.addEventListener('touchstart', startDrawing);
+    drawLayer.addEventListener('touchmove', drawing);
+    window.addEventListener('touchend', stopDrawing);
 }
 
 function clearCanvas() { if(confirm('전체 삭제 하시겠습니까?')) ctx.clearRect(0,0,drawLayer.width,drawLayer.height); }
 
-/* 5. 객체 관리 (텍스트, 이미지 추가 및 순서 변경) */
+/* 5. 객체 관리 - [터치 기능 추가] */
 function addText() { 
 addObject({ type:'text', content:'텍스트 입력', x:150, y:150, z:100, size:16, color:'#ffffff', font:'Pretendard' }); 
 }
@@ -857,20 +849,10 @@ function addObject(d) {
         if (exists) { alert('이미 추가된 에셋입니다.'); return; }
     }
 
-    // --- [중앙 배치 로직 추가 시작] ---
-    // 만약 x, y 좌표가 지정되지 않았거나 150(기본값)이라면 중앙으로 계산
     if (d.x === 150 || d.x === 50 || !d.x) { 
-        const artWidth = artboard.offsetWidth;
-        const artHeight = artboard.offsetHeight;
-        
-        // 이미지 너비(d.w)가 있으면 그 절반을 빼고, 없으면 대략 50px을 뺌
-        const offsetW = (d.w || 100) / 2;
-        const offsetH = (d.type === 'text' ? 20 : (d.w || 100) / 2);
-
-        d.x = (artWidth / 2) - offsetW;
-        d.y = (artHeight / 2) - offsetH;
+        d.x = (artboard.offsetWidth / 2) - (d.w || 100) / 2;
+        d.y = (artboard.offsetHeight / 2) - (d.type === 'text' ? 20 : (d.w || 100) / 2);
     }
-    // --- [중앙 배치 로직 추가 끝] ---
 
     const wrap = document.createElement('div');
     wrap.className = 'movable';
@@ -893,7 +875,6 @@ function addObject(d) {
     }
     wrap.appendChild(inner);
 
-    // ... (이후 핸들러 및 이벤트 코드는 기존과 동일하게 유지)
     const hRot = document.createElement('div'); hRot.className = 'handle rotator'; hRot.innerHTML = '<i class="fa-solid fa-rotate"></i>';
     const hRes = document.createElement('div'); hRes.className = 'handle resizer';
     const hDel = document.createElement('div'); hDel.className = 'handle del-btn'; hDel.innerHTML = '×';
@@ -914,37 +895,60 @@ function addObject(d) {
 
     hDel.onmousedown = (e) => { e.stopPropagation(); wrap.remove(); };
 
-    wrap.onmousedown = (e) => {
+    // --- 객체 드래그/회전/크기조절 [터치 이벤트 전환] ---
+    const startHandle = (e) => {
         if(e.target.closest('.edit-btn') || inner.contentEditable === "true") return;
         e.stopPropagation();
         selectObject(wrap, d);
         
-        let sx = e.clientX, sy = e.clientY;
+        // 마우스/터치 좌표 통합
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        let sx = clientX, sy = clientY;
         const rect = wrap.getBoundingClientRect();
         const cx = rect.left + rect.width / 2;
         const cy = rect.top + rect.height / 2;
         const startAngle = Math.atan2(sy - cy, sx - cx);
         const startRot = d.rot;
 
-        document.onmousemove = (m) => {
+        const moveHandle = (m) => {
+            const mclientX = m.touches ? m.touches[0].clientX : m.clientX;
+            const mclientY = m.touches ? m.touches[0].clientY : m.clientY;
+
             if (e.target.closest('.rotator')) {
-                const curAngle = Math.atan2(m.clientY - cy, m.clientX - cx);
+                const curAngle = Math.atan2(mclientY - cy, mclientX - cx);
                 d.rot = startRot + (curAngle - startAngle) * (180 / Math.PI);
                 wrap.style.transform = `rotate(${d.rot}deg)`;
             } else if (e.target.closest('.resizer')) {
-                let dx = (m.clientX - sx) / zoomScale;
+                let dx = (mclientX - sx) / zoomScale;
                 d.w = Math.max(30, d.w + dx);
                 if (d.type === 'img') inner.style.width = d.w + 'px';
                 else { d.size = Math.max(8, d.w / 4); inner.style.fontSize = d.size + 'pt'; }
-                sx = m.clientX;
+                sx = mclientX;
             } else {
-                d.x += (m.clientX - sx) / zoomScale; d.y += (m.clientY - sy) / zoomScale;
+                d.x += (mclientX - sx) / zoomScale; d.y += (mclientY - sy) / zoomScale;
                 wrap.style.left = d.x + 'px'; wrap.style.top = d.y + 'px';
-                sx = m.clientX; sy = m.clientY;
+                sx = mclientX; sy = mclientY;
             }
         };
-        document.onmouseup = () => { document.onmousemove = null; };
+
+        const stopHandle = () => {
+            window.removeEventListener('mousemove', moveHandle);
+            window.removeEventListener('touchmove', moveHandle);
+            window.removeEventListener('mouseup', stopHandle);
+            window.removeEventListener('touchend', stopHandle);
+        };
+
+        window.addEventListener('mousemove', moveHandle);
+        window.addEventListener('touchmove', moveHandle);
+        window.addEventListener('mouseup', stopHandle);
+        window.addEventListener('touchend', stopHandle);
     };
+
+    wrap.addEventListener('mousedown', startHandle);
+    wrap.addEventListener('touchstart', startHandle);
+
     artboard.appendChild(wrap);
     selectObject(wrap, d);
 }
@@ -967,7 +971,7 @@ function changeOrder(type) {
     el.style.zIndex = d.z;
 }
 
-/* 6. 유틸리티 (마스크, 에셋 렌더링 등) */
+/* 6. 유틸리티 */
 function toggleMaskVisible() {
     const mask = document.getElementById('mask-layer');
     const btn = document.getElementById('mask-vis-btn');
@@ -981,11 +985,6 @@ function toggleMaskVisible() {
 function updateMaskOpacity(val) {
     const mask = document.getElementById('mask-layer');
     if(mask) mask.style.opacity = val;
-}
-
-function openMaskFileBrowser(e) {
-    e.stopPropagation();
-    document.getElementById('mask-file-input').click();
 }
 
 function setLayer(input, type) {
@@ -1040,7 +1039,6 @@ function selectObject(el, d) {
     selected = { el, d }; 
     el.classList.add('selected');
 
-    // [추가] 선택한 게 텍스트라면 툴바 UI에 현재 값 표시
     if (d.type === 'text') {
         document.getElementById('t-color').value = d.color || "#000000";
         document.getElementById('t-size').value = d.size || 24;
@@ -1057,7 +1055,6 @@ function deselectAll(e) {
     selected = null;
 }
 
-// 바깥 클릭 시 닫기 (이벤트 전파 처리 완료)
 window.addEventListener('mousedown', (e) => {
     if(e.target.closest('.asset-popup') || e.target.closest('.tool-popup') || e.target.closest('.btn')) return;
     document.querySelectorAll('.tool-popup, .asset-popup').forEach(p => {
@@ -1071,62 +1068,42 @@ window.addEventListener('mousedown', (e) => {
 async function exportHighResImage() {
     const target = document.getElementById('artboard');
     if (!target) return;
-
-    // 작업 중임을 표시
     document.body.style.cursor = 'wait';
 
     try {
         const canvas = await html2canvas(target, {
-            useCORS: true,      // 배경/마스크 이미지 로드 허용
-            scale: 4,           // 4배 고해상도 (일러스트레이터 작업용)
-            logging: false,     // 콘솔 지저분함 방지
-            allowTaint: true,   // 로컬 환경 지원
-            backgroundColor: null // 투명도 유지
+            useCORS: true,
+            scale: 4,
+            logging: false,
+            allowTaint: true,
+            backgroundColor: null
         });
-
-        // 다운로드 링크 생성
         const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.download = `Tactic_Pro_HighRes_${new Date().getTime()}.png`;
         link.href = dataUrl;
         link.click();
-
     } catch (error) {
-console.warn("보안 정책으로 인해 일부 이미지가 누락될 수 있습니다.");
+        console.warn("보안 정책으로 인해 일부 이미지가 누락될 수 있습니다.");
     } finally {
-        // 커서 복구
         document.body.style.cursor = 'default';
     }
 }
 
 function resetPage() {
     if (!confirm('모든 내용을 삭제하고 초기화하시겠습니까?')) return;
-
-    // 1. 캔버스 그림 삭제
     ctx.clearRect(0, 0, drawLayer.width, drawLayer.height);
-
-    // 2. 배치된 모든 객체(movable) 삭제
-    const objects = document.querySelectorAll('.movable');
-    objects.forEach(obj => obj.remove());
-
-    // 3. 배경 이미지 및 마스크 초기화
+    document.querySelectorAll('.movable').forEach(obj => obj.remove());
     document.getElementById('field-bg').style.backgroundImage = 'none';
     const ml = document.getElementById('mask-layer');
-    if (ml) {
-        ml.style.backgroundImage = 'none';
-        ml.style.display = 'none';
-    }
-    
-    // 4. 선택 상태 해제
+    if (ml) { ml.style.backgroundImage = 'none'; ml.style.display = 'none'; }
     selected = null;
-    
     alert('초기화되었습니다.');
 }
 
 let pages = [{ canvas: null, objects: [] }]; 
 let currentPageIdx = 0;
 
-// 2. 페이지 UI 갱신 (숫자 버튼 생성)
 function updatePageUI() {
     const list = document.getElementById('page-list');
     if(!list) return;
@@ -1140,7 +1117,6 @@ function updatePageUI() {
     });
 }
 
-// 3. 현재 화면 데이터 저장
 function saveCurrentPageData() {
     pages[currentPageIdx] = {
         canvas: drawLayer.toDataURL(),
@@ -1163,23 +1139,18 @@ function saveCurrentPageData() {
     };
 }
 
-// 4. 페이지 불러오기
-/* 페이지 추가/전환 시 호출 */
 function loadPageData(idx) {
-    saveCurrentPageData(); // 이동 전 현재 데이터 저장
+    saveCurrentPageData();
     currentPageIdx = idx;
     const data = pages[idx];
     
-    // 화면 초기화
     document.querySelectorAll('.movable').forEach(el => el.remove());
     ctx.clearRect(0, 0, drawLayer.width, drawLayer.height);
 
-    // 저장된 객체들 복구
     if (data && data.objects) {
         data.objects.forEach(obj => addObject(obj));
     }
     
-    // 저장된 그림 복구
     if (data && data.canvas) {
         const img = new Image();
         img.onload = () => ctx.drawImage(img, 0, 0);
@@ -1187,11 +1158,9 @@ function loadPageData(idx) {
     }
     
     updatePageUI();
-    // 페이지 이동 후 줌 배율 재적용 (스크롤 영역 갱신)
     manualZoom(zoomScale);
 }
 
-// 5. 페이지 추가/이동
 function addPage() {
     saveCurrentPageData();
     pages.push({ canvas: null, objects: [] });
@@ -1209,27 +1178,22 @@ function applyScenario(val) {
     const maskLayer = document.getElementById('mask-layer');
     const maskBtn = document.getElementById('mask-vis-btn');
 
-// [핵심 추가] 시나리오 선택 시 무조건 가로(landscape) 모드로 변경
     if (val !== 'none') {
         artboard.classList.remove('portrait');
         artboard.classList.add('landscape');
         
-        // 방향이 바뀌었으므로 캔버스 크기와 줌 영역을 즉시 재계산합니다.
         setTimeout(() => {
             resizeCanvas();
             manualZoom(zoomScale); 
         }, 50);
     }
 
-    // 1. 배경(Background) 적용
     if (data.bg === 'none') {
-        bgLayer.style.backgroundImage = `url('./${data.bg}')`;
+        bgLayer.style.backgroundImage = 'none';
     } else {
-        // 경로 주의: 실제 이미지 위치에 맞춰 수정 (예: ./img/ 또는 ./assets/)
         bgLayer.style.backgroundImage = `url('./${data.bg}')`;
     }
 
-    // 2. 마스크(Mask) 적용
     if (data.mask === 'none') {
         maskLayer.style.backgroundImage = 'none';
         maskLayer.style.display = 'none';
@@ -1240,11 +1204,7 @@ function applyScenario(val) {
         maskLayer.style.opacity = 0.5; 
         if(maskBtn) maskBtn.style.color = 'var(--accent)';
     }
-    console.log(`Scenario changed to: ${val}`);
 }
-
 </script>
 </body>
-
 </html>
-
