@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Studio Black Tactic PRO v1.0</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="apple-touch-icon" href="drawingW.png">
+    <link rel="icon" type="image/png" sizes="192x192" href=drawingW.png">
+<meta name="theme-color" content="#080808">
+    <style>
+        :root {
+            --bg-dark: #080808; --bg-sidebar: #121212; --bg-item: #252525;
+            --accent: #3773f5; --border: #2a2a2a; --text: #efefef; --danger: #ff4d4d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Pretendard', sans-serif; }
+        body { background: var(--bg-dark); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+#order-popup {
+    min-width: 100px; /* 팝업 최소 너비 조절 */
+    padding: 10px;
+}
+#order-popup .btn {
+    width: 35px;
+    height: 35px;
+}
+
+#p-color {
+    -webkit-appearance: none; /* 브라우저 기본 스타일 제거 */
+    -moz-appearance: none;
+    appearance: none;
+    width: 100%;             /* 가로 가득 채우기 */
+    height: 35px;            /* 높이 조절 */
+    background-color: transparent;
+    border: 1px solid #444;  /* 테두리 살짝 추가 */
+    border-radius: 8px;      /* 둥근 모서리 */
+    cursor: pointer;
+    overflow: hidden;
+}
+
+/* 컬러 피커 내부 색상 영역 스타일링 */
+#p-color::-webkit-color-swatch-wrapper { padding: 0; }
+#p-color::-webkit-color-swatch { border: none; border-radius: 6px; }
+
+/* 전문가용 커스텀 컬러 피커 스타일 */
+.full-color-picker {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: 1px solid #444;
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 0;
+    overflow: hidden;
+}
+.full-color-picker::-webkit-color-swatch-wrapper { padding: 3px; }
+.full-color-picker::-webkit-color-swatch { border: none; border-radius: 5px; }
+
+        /* 사이드바 */
+        .sidebar { width: 65px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 0; gap: 10px; flex-shrink: 0; z-index: 100; }
+.logo-container { 
+    width: 65px; 
+    height: 60px; /* 이 값이 상단 툴바 높이와 같아야 합니다 */
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    background: #000; 
+    border-bottom: 1px solid var(--border); /* 하단 테두리 포함 */
+    margin-bottom: 10px; 
+}
+        .logo-container i { font-size: 24px; color: var(--accent); }
+
+        /* 메인 컨텐츠 */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        
+.top-toolbar { 
+    height: 60px; /* 로고 컨테이너의 height와 숫자를 맞추세요 */
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    padding: 10px 15px; 
+    gap: 20px; 
+    background: var(--bg-sidebar); 
+    border-bottom: 1px solid var(--border); 
+    box-sizing: border-box; /* 테두리를 높이 계산에 포함시켜 오차를 줄입니다 */
+}
+
+        /* 도구 그룹 및 팝업 */
+        .tool-group { display: flex; align-items: center; gap: 8px; border-right: 1px solid var(--border); padding-right: 12px; position: relative; }
+        .group-label { font-size: 9px; color: var(--accent); font-weight: 800; text-transform: uppercase; }
+        
+        .btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: #888; background: var(--bg-item); border: 1px solid transparent; transition: 0.2s; }
+        .btn:hover, .btn.active { color: #fff; border-color: var(--accent); background: #333; }
+        .btn-accent { background: var(--accent); color: #fff !important; }
+
+        .tool-popup { position: absolute; top: 55px; left: 50%; transform: translateX(-50%); background: #1a1a1a; border: 1px solid var(--accent); padding: 12px; border-radius: 8px; display: none; flex-direction: column; gap: 10px; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.8); min-width: 140px; }
+        .tool-popup.active { display: flex; }
+
+#mask-side-popup.tool-popup.side-style {
+display: none;
+    position: absolute; /* fixed보다 absolute가 사이드바 기준 잡기 좋습니다 */
+    left: 75px !important; 
+    top: 0; 
+    width: 180px;
+    background: #1e1e1e;
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 15px;
+    z-index: 10005;
+    box-shadow: 15px 0 40px rgba(0,0,0,0.7);
+    transform: none !important;
+}
+
+#mask-side-popup.active {
+    display: flex !important;
+    flex-direction: column;
+}
+
+#zoom-engine {
+transition: transform 0.2s ease;
+    transform-origin: top left !important; 
+    margin: 0 auto;         /* 초기 상태 중앙 정렬 */
+    display: block;
+    position: relative;
+}
+
+/* --- 고급 커스텀 스크롤바 디자인 --- */
+
+/* 1. 스크롤바 전체 영역 설정 */
+#ws-area::-webkit-scrollbar {
+    width: 8px;  /* 세로 스크롤바 두께 */
+    height: 8px; /* 가로 스크롤바 두께 */
+    background-color: transparent; /* 배경은 투명하게 */
+}
+
+/* 2. 스크롤바 막대(Thumb) 디자인 */
+#ws-area::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1); /* 평상시 아주 은은한 흰색 */
+    border-radius: 10px;
+    border: 2px solid transparent; /* 막대 주변 여백 효과 */
+    background-clip: padding-box;
+    transition: background 0.3s;
+}
+
+/* 3. 마우스 올렸을 때(Hover) 강조 */
+#ws-area::-webkit-scrollbar-thumb:hover {
+    background: var(--accent); /* 강조색(파란색 등)으로 변경 */
+    background-clip: padding-box;
+}
+
+/* 4. 스크롤바 트랙(Track) - 막대가 지나가는 길 */
+#ws-area::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2); /* 아주 어두운 배경 */
+    border-radius: 10px;
+}
+
+/* 5. 가로/세로 스크롤바가 만나는 코너 */
+#ws-area::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* Firefox 전용 (선택 사항) */
+#ws-area {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* 내부 행 정렬 */
+.side-popup-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+/* 내부 버튼 스타일 통일 */
+.side-popup-row .btn.small {
+    width: auto !important;
+    height: 40px !important;
+    flex: 1;
+}
+
+.side-popup-row .btn.small:hover {
+    background: #3a3a3a;
+}
+
+/* 사이드바 전용 팝업 스타일 */
+.tool-popup.side-style {
+    display: none;
+    position: absolute;
+    left: 65px; /* 사이드바 너비에 맞춰 조정 */
+    top: 0;
+    width: 160px;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 12px;
+    z-index: 10001;
+    box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+}
+
+.tool-popup.side-style.active {
+    display: block;
+}
+
+.side-popup-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.btn.small {
+    flex: 1;
+    height: 35px;
+    font-size: 13px;
+}
+
+.workspace { 
+flex: 1; 
+    position: relative; 
+    background-color: #0a0a0a;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 30px 30px; 
+    
+    overflow: auto; 
+    display: grid;             /* grid로 다시 변경 */
+    place-content: start start; /* 왼쪽(start) 상단(start)에 딱 붙임 */
+    padding: 20px;             /* 사이드바/툴바와의 여백 */
+}
+
+.zoom-engine { 
+    transition: transform 0.2s ease-out; 
+    display: inline-block;  /* 내용물 크기만큼 너비 점유 */
+    transform-origin: 0 0;  /* 왼쪽 상단 기준 (가장 안정적인 스크롤 방식) */
+width: fit-content;    /* 실제 아트보드 크기에 맞춤 */
+    height: fit-content;
+    position: relative;
+    margin: 0;         /* 초기 중앙 정렬 */
+}
+
+.portrait { width: 540px; height: 756px; }  /* 기존 450x630에서 확대 */
+.landscape { width: 840px; height: 540px; } /* 기존 700x450에서 확대 */
+        
+#artboard { 
+    background: #fff; 
+    position: relative; 
+    box-shadow: 0 0 50px rgba(0,0,0,0.8); 
+    overflow: hidden; 
+    /* 이미지 저장 시 줌 영향을 받지 않도록 고정 크기 유지 */
+}
+
+/* 배경 레이어 설정 */
+#field-bg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: 100% 100%; /* 이미지를 레이어 크기에 강제로 맞춤 */
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: 1;
+}
+#mask-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: 100% 100%; /* 배경과 동일하게 설정 */
+    background-position: center;
+    background-repeat: no-repeat;
+    pointer-events: none; /* 클릭 방해 금지 */
+    z-index: 9999; /* 이전에 정한 레이어 순서 유지 */
+}
+        #draw-layer { position: absolute; inset: 0; z-index: 500; pointer-events: none; }
+        #draw-layer.active { pointer-events: auto; cursor: crosshair; }
+
+        /* 에셋 팝업 */
+.asset-popup {
+    position: absolute;
+    /* 마스크 팝업과 동일하게 사이드바에서 띄우기 */
+    left: 85px !important; 
+    top: 20px; 
+    width: 260px; /* 조금 더 넓게 조정 가능 */
+    background: #1e1e1e; /* 마스크 팝업과 배경색 통일 */
+    border: 1px solid var(--accent); /* 테두리 강조 */
+    border-radius: 12px;
+    display: none;
+    flex-direction: column;
+    padding: 18px;
+    gap: 15px;
+    z-index: 2000;
+    /* 깊이감 있는 그림자 */
+    box-shadow: 15px 0 40px rgba(0,0,0,0.7);
+    /* 상단 툴바용 중앙정렬 해제 */
+    transform: none !important;
+}
+        .asset-popup.active { display: flex; }
+
+.asset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    max-height: 350px; /* 창이 너무 커지지 않게 제한 */
+    overflow-y: auto;
+}
+
+.asset-grid::-webkit-scrollbar { width: 4px; }
+.asset-grid::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+
+        .asset-popup, #mask-side-popup {
+position: absolute !important;
+    left: 80px !important;
+    top: 20px;
+    width: 250px;
+    background: #1e1e1e;
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    z-index: 10000;
+    box-shadow: 15px 0 40px rgba(0,0,0,0.8);
+    padding: 15px;
+    transform: none !important;
+    
+    /* 중요: 초기 상태는 display: none이지만 !important를 붙이지 마세요 */
+    display: none; 
+    flex-direction: column;
+}
+        /* [수정] 에셋 미리보기 및 삭제 버튼 */
+        .asset-thumb { aspect-ratio: 1; background: #1a1a1a; border-radius: 6px; border: 1px solid #333; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        .asset-thumb img { max-width: 80%; max-height: 80%; object-fit: contain; }
+        .asset-del-btn { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; background: var(--danger); color: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; z-index: 10; opacity: 0.8; }
+        .asset-del-btn:hover { opacity: 1; }
+
+        /* Movable Objects */
+        .movable { position: absolute; cursor: grab; z-index: 100; padding: 5px; border: 2px solid transparent; user-select: none; }
+        .movable.selected { border: 2px solid var(--accent) !important; background: rgba(55, 115, 245, 0.05); z-index: 999; }
+        
+        .handle { position: absolute; width: 26px; height: 26px; background: #fff; border: 2px solid var(--accent); border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 14px; color: #000; z-index: 1000; cursor: pointer; pointer-events: auto !important; }
+        .movable.selected .handle { display: flex; }
+        
+        .rotator { top: -30px; left: 50%; transform: translateX(-50%); background: #28a745; color: white; }
+        .del-btn { top: -10px; right: -10px; background: var(--danger); color: white; border: none; }
+        .resizer { bottom: -10px; right: -10px; cursor: se-resize; }
+        .edit-btn { top: -10px; left: -10px; background: #ffc107; }
+
+        .text-inner { white-space: nowrap;
+    outline: none;
+    /* 텍스트 가독성을 위한 미세한 그림자 (시안용) */
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+        .text-inner.editing { background: rgba(255,255,255,0.1); border-radius: 4px; cursor: text; pointer-events: auto; }
+
+        .portrait { width: 450px; height: 630px; }
+        .landscape { width: 700px; height: 450px; }
+        
+        input[type="range"] { accent-color: var(--accent); cursor: pointer; }
+        select { background: #333; color: #fff; border: 1px solid #444; border-radius: 4px; padding: 4px; font-size: 12px; }
+
+.movable img {
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+    /* 이미지 확대 시 깨짐 방지 */
+    image-rendering: -webkit-optimize-contrast; 
+}
+
+#page-controller {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+}
+
+.page-bar {
+    background: rgba(15, 15, 15, 0.9);
+    border: 1px solid var(--accent);
+    border-radius: 50px;
+    padding: 8px 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    backdrop-filter: blur(10px);
+}
+
+.page-btn {
+    background: none; border: none; color: #888;
+    cursor: pointer; font-size: 14px; transition: 0.2s;
+}
+
+.page-btn:hover { color: #fff; }
+.page-btn.add { color: var(--accent); margin-left: 5px; }
+
+.page-dots { display: flex; gap: 6px; align-items: center; }
+
+.page-dot {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #252525; color: #888; font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; border: 1px solid #333;
+}
+
+.page-dot.active {
+    background: var(--accent); color: white; border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(55, 115, 245, 0.4);
+}
+
+/* A4 가로 비율 (1.414 : 1) */
+#artboard.landscape {
+    width: 848px;  /* A4 96DPI 기준 가로 픽셀 */
+    height: 600px;  /* A4 96DPI 기준 세로 픽셀 */
+    position: relative;
+    background-color: #fff;
+    margin: 0 auto;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3); /* 시안지 느낌을 위한 그림자 */
+    overflow: hidden;
+}
+
+/* 세로 모드도 A4 비율로 맞춘다면 (참고용) */
+#artboard.portrait {
+    width: 600px;
+    height: 848px;
+}
+
+#field-bg, #mask-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;  /* 아트보드 가로에 맞춤 */
+    height: 100%; /* 아트보드 세로에 맞춤 */
+    background-size: 100% 100%; /* 이미지 비율을 아트보드(A4)에 강제 일치 */
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.t-select {
+    background: #1a1a1a;
+    color: #fff;
+    border: 1px solid #333;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.t-select:hover {
+    border-color: var(--accent);
+}
+
+.tool-label {
+    font-size: 11px;
+    color: #888;
+    margin-right: 8px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+    </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="logo-container">
+<span style="font-size: 1.1rem; font-weight: 800; color: var(--accent); letter-spacing: -1px;">
+      오앤와이
+    </span>
+</div>
+        <div class="btn" title="이미지 에셋" onclick="togglePopup('img')"><i class="fa-solid fa-image"></i></div>
+        <div class="btn" title="패턴/도형 에셋" onclick="togglePopup('pattern')"><i class="fa-solid fa-shapes"></i></div>
+        <label class="btn" title="배경 업로드"><i class="fa-solid fa-panorama"></i><input type="file" hidden onchange="setLayer(this, 'bg')"></label>
+
+<div class="side-tool-item" style="position: relative; width: 100%; display: flex; justify-content: center;">
+    <div class="btn" title="마스크 설정" onclick="toggleMaskPopup(event)">
+        <i class="fa-solid fa-mask"></i>
+    </div>
+
+    <div id="mask-side-popup" class="tool-popup side-style" onclick="event.stopPropagation()">
+        <div class="group-label" style="margin-bottom: 12px; color: var(--accent); font-size: 10px; letter-spacing: 1px;">MASK LAYER</div>
+        
+
+        <div class="side-popup-row" style="display: flex; gap: 8px; margin-bottom: 15px;">
+            <div class="btn small" onclick="document.getElementById('mask-file-input').click()" style="flex:1;">
+                <i class="fa-solid fa-upload"></i>
+            </div>
+            <div class="btn small" id="mask-vis-btn" onclick="toggleMaskVisible()" style="flex:1;">
+                <i class="fa-solid fa-eye-slash"></i>
+            </div>
+
+        </div>
+
+        <input type="file" id="mask-file-input" hidden onchange="setLayer(this, 'mask')">
+
+        <div class="group-label" style="margin-bottom: 8px; color: #888; font-size: 9px;">OPACITY CONTROL</div>
+        <input type="range" min="0" max="1" step="0.1" value="0.5" 
+               onmousedown="event.stopPropagation()" 
+               oninput="updateMaskOpacity(this.value)" 
+               style="width: 100%; cursor: pointer;">
+    </div>
+</div>
+
+
+        <div class="btn" title="회전" onclick="toggleOri()"><i class="fa-solid fa-rotate"></i></div>
+        
+        <div style="margin-top:auto; display:flex; flex-direction:column; gap:12px; padding-bottom:15px;">
+<div class="btn" title="고화질 이미지 저장" onclick="exportHighResImage()" style="color: #48c774;">
+    <i class="fa-solid fa-camera"></i>
+</div>
+            <div class="btn" title="초기화" onclick="resetPage()" style="color:var(--danger);"><i class="fa-solid fa-trash-can"></i></div>
+        </div>
+
+        <div class="asset-popup" id="asset-popup">
+            <div style="font-size:10px; color:var(--accent); font-weight:900; letter-spacing:1px;" id="popup-title">ASSET LIBRARY</div>
+            <div class="asset-grid" id="asset-grid"></div>
+            <button class="btn btn-accent" style="width:100%; height:32px; font-size:11px;" onclick="document.getElementById('file-up').click()">FILE UPLOAD</button>
+            <input type="file" id="file-up" hidden onchange="handleAssetUpload(this)">
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-toolbar">
+            <div class="tool-group">
+                <span class="group-label">Text</span>
+                <div class="btn" id="btn-text" onclick="toggleToolPopup(event, 'text-popup')"><i class="fa-solid fa-font"></i></div>
+<div id="text-popup" class="tool-popup">
+    <div class="group-label">Text Settings</div>
+    <div class="btn-main" onclick="addText()" style="background:var(--accent); color:white; padding:10px; border-radius:8px; text-align:center; cursor:pointer; font-size:12px; font-weight:bold; margin-bottom:10px;">
+        <i class="fa-solid fa-plus" style="margin-right:5px;"></i> NEW TEXT
+    </div>
+    
+    <div class="group-label">Font Family</div>
+    <select id="t-font" onchange="syncText()" style="width:100%; margin-bottom:10px;">
+        <option value="Pretendard">Pretendard</option>
+        <option value="Impact">Impact</option>
+        <option value="Courier New">Courier</option>
+    </select>
+
+    <div class="group-label">Text Color & Size</div>
+    <div style="display:flex; gap:5px; align-items:center; width:100%;">
+        <div style="flex:1; height:38px; position:relative;">
+            <input type="color" id="t-color" value="#000000" oninput="syncText()" class="full-color-picker">
+        </div>
+        <input type="number" id="t-size" value="24" oninput="syncText()" style="width:55px; height:38px; background:#1a1a1a; color:white; border:1px solid #444; border-radius:8px; text-align:center; font-size:13px;">
+    </div>
+</div>            </div>
+
+            <div class="tool-group">
+                <span class="group-label">Pen</span>
+                <div class="btn" id="btn-pen" onclick="toggleToolPopup(event, 'pen-popup')"><i class="fa-solid fa-pen-nib"></i></div>
+                <div id="pen-popup" class="tool-popup">
+                    <div style="display:flex; gap:5px;">
+                        <div class="btn" id="m-pen" onclick="setDrawMode('pen')" style="width:50px; height:40px;"><i class="fa-solid fa-pencil"></i></div>
+                        <div class="btn" id="m-eraser" onclick="setDrawMode('eraser')" style="width:50px; height:40px;"><i class="fa-solid fa-eraser"></i></div>
+                        <div class="btn" onclick="clearCanvas()" style="width:40px; height:40px;"><i class="fa-solid fa-broom"></i></div>
+                    </div>
+                    <input type="color" id="p-color" value="#000000" style="width:100%; height:40px; border: none; padding: 0; background: none; cursor: pointer;">
+                    <input type="range" id="p-weight" min="1" max="20" value="3">
+                    <button onclick="setDrawMode('none')" style="font-size:10px; padding:10px; background:#444; color:white; border:none; border-radius:4px; cursor:pointer;">그리기 취소</button>
+                </div>
+            </div>
+
+<div class="tool-group">
+    <span class="group-label">Order</span>
+    <div class="btn" onclick="toggleToolPopup(event, 'order-popup')" title="배치 조절">
+        <i class="fa-solid fa-layer-group"></i>
+    </div>
+    
+    <div id="order-popup" class="tool-popup">
+        <div style="display: flex; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="btn" onclick="changeOrder('front')" title="맨 앞으로"><i class="fa-solid fa-angles-up"></i></div>
+            <div class="btn" onclick="changeOrder('up')" title="앞으로"><i class="fa-solid fa-angle-up"></i></div>
+            <div class="btn" onclick="changeOrder('down')" title="뒤로"><i class="fa-solid fa-angle-down"></i></div>
+            <div class="btn" onclick="changeOrder('back')" title="맨 뒤로"><i class="fa-solid fa-angles-down"></i></div>
+        </div>
+        <div style="font-size: 10px; text-align: center; margin-top: 5px; color: #888;">Layer Order</div>
+    </div>
+</div>
+
+            <div class="tool-group">
+                <span class="group-label">Zoom</span>
+                <div class="btn" id="btn-zoom" onclick="toggleToolPopup(event, 'zoom-popup')"><i class="fa-solid fa-magnifying-glass"></i></div>
+                <div id="zoom-popup" class="tool-popup">
+                    <input type="range" id="zoom-range" min="1" max="3" step="0.1" value="1" oninput="manualZoom(this.value)">
+                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                        <span id="zoom-val">100%</span>
+                        <span onclick="resetZoom()" style="text-decoration:underline; cursor:pointer;">Reset</span>
+                    </div>
+                </div>
+            </div>
+
+<div class="tool-group" style="margin-left: 15px; border-left: 1px solid #333; padding-left: 15px; display: flex; align-items: center;">
+
+    <select id="scenario-select" onchange="applyScenario(this.value)" 
+            style="background: #1a1a1a; color: #fff; border: 1px solid #555; padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer;">
+        <option value="none">신가드 사이즈</option>
+        <option value="s1">HMG-123 / 10.5cm x16.5cm</option>
+        <option value="s2">HMG-122 / 9.5cm x 14.5cm</option>
+        <option value="s3">HMG-121 / 10cm x 11.5cm</option>
+        <option value="s4">HMG-120 / 7.5cm x 9.5cm</option>
+    </select>
+</div>
+
+        </header>
+
+        <div class="workspace" id="ws-area" onclick="deselectAll(event)">
+            <div class="zoom-engine" id="zoom-engine">
+                <div id="artboard" class="portrait">
+                    <div id="field-bg"></div>
+                    <div id="mask-layer"></div>
+                    <canvas id="draw-layer"></canvas>
+                </div>
+            </div>
+        </div>
+
+
+<div id="page-controller">
+            <div class="page-bar">
+                <button class="page-btn" onclick="prevPage()"><i class="fa-solid fa-chevron-left"></i></button>
+                <div id="page-list" class="page-dots"></div>
+                <button class="page-btn" onclick="nextPage()"><i class="fa-solid fa-chevron-right"></i></button>
+                <button class="page-btn add" onclick="addPage()"><i class="fa-solid fa-plus"></i></button>
+
+            </div>
+        </div>
+
+    </main>
+
+
+
+<script>
+ /* 1. 상태 관리 */
+let idCnt = 0, selected = null, mode = 'none', isDrawing = false;
+let zoomScale = 1;
+
+const scenarioData = {
+    s1: { bg: 'S.png', mask: 'S-1.png' },
+    s2: { bg: 'M.png', mask: 'M-1.png' },
+    s3: { bg: 'L.png', mask: 'L-1.png' },
+    s4: { bg: 'XL.png', mask: 'XL-1.png' },
+    none: { bg: 'none', mask: 'none' }
+};
+
+let assetLibrary = { img: [], pattern: [] }, currentPopupType = 'img';
+
+const engine = document.getElementById('zoom-engine');
+const artboard = document.getElementById('artboard');
+const drawLayer = document.getElementById('draw-layer');
+const ctx = drawLayer.getContext('2d');
+
+window.onload = () => { 
+    resizeCanvas(); 
+    initDrawing(); 
+    updatePageUI(); // 페이지 목록 초기 표시
+    
+    requestAnimationFrame(() => {
+        manualZoom(1); 
+        const ws = document.getElementById('ws-area');
+        if (ws) {
+            ws.scrollTop = 0;
+            // 줌이 1일 때 중앙 정렬
+            ws.scrollLeft = (ws.scrollWidth - ws.clientWidth) / 2;
+        }
+    });
+};
+
+
+function toggleOri() {
+    artboard.classList.toggle('portrait');
+    artboard.classList.toggle('landscape');
+    setTimeout(() => {
+        resizeCanvas();
+        manualZoom(zoomScale); // 회전된 크기에 맞춰 스크롤 영역 재계산
+    }, 50);
+}
+
+/* 텍스트 설정 동기화 함수 */
+function syncText() {
+    // 1. 현재 선택된 객체가 있고, 그 타입이 텍스트인지 확인
+    if (!selected || selected.d.type !== 'text') return;
+
+    const el = selected.el;      // 전체를 감싸는 .movable 레이어
+    const d = selected.d;        // 데이터 객체
+    const inner = el.querySelector('.text-inner'); // 실제 글자가 적힌 div
+
+    // 2. 입력창에서 값 가져오기
+    const newColor = document.getElementById('t-color').value;
+    const newSize = document.getElementById('t-size').value;
+    const newFont = document.getElementById('t-font').value;
+
+    // 3. 데이터 업데이트
+    d.color = newColor;
+    d.size = newSize;
+    d.font = newFont;
+
+    // 4. 화면(DOM)에 즉시 반영
+    inner.style.color = newColor;
+    inner.style.fontSize = newSize + 'pt';
+    inner.style.fontFamily = newFont;
+}
+
+function resizeCanvas() {
+    drawLayer.width = artboard.offsetWidth;
+    drawLayer.height = artboard.offsetHeight;
+}
+
+/* 2. 팝업 제어 (사이드바 에셋 & 마스크 통합) */
+function togglePopup(type, event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    const assetPopup = document.getElementById('asset-popup');
+    const maskPopup = document.getElementById('mask-side-popup');
+    
+    // 현재 클릭한 팝업의 타겟 결정
+    let target = (type === 'mask') ? maskPopup : assetPopup;
+    const isOpen = target.classList.contains('active');
+
+    // 1. 모든 팝업 초기화 (다른 창 닫기)
+    document.querySelectorAll('.asset-popup, .tool-popup').forEach(p => {
+        p.classList.remove('active');
+        p.style.display = 'none';
+    });
+
+    // 2. 상태에 따라 열기/닫기
+    if (!isOpen) {
+        if (type === 'img' || type === 'pattern') {
+            currentPopupType = type;
+            document.getElementById('popup-title').innerText = type.toUpperCase() + ' ASSETS';
+            renderAssets();
+            assetPopup.classList.add('active');
+            assetPopup.style.display = 'flex';
+        } else if (type === 'mask') {
+            maskPopup.classList.add('active');
+            maskPopup.style.display = 'flex';
+        }
+    }
+}
+
+// 상단 툴바 전용 (기존 로직 유지)
+function toggleToolPopup(e, id) {
+    if(e) e.stopPropagation();
+    const popup = document.getElementById(id);
+    const isActive = popup.classList.contains('active');
+    
+    document.querySelectorAll('.tool-popup, .asset-popup').forEach(p => {
+        p.classList.remove('active');
+        p.style.display = 'none';
+    });
+    
+    if(!isActive) {
+        popup.classList.add('active');
+        popup.style.display = 'flex';
+        if(e) e.currentTarget.classList.add('active');
+    }
+}
+
+function toggleMaskPopup(e) {
+    togglePopup('mask', e);
+}
+
+/* 3. 줌 및 스크롤 최적화 */
+function manualZoom(val) {
+    zoomScale = parseFloat(val);
+    const engine = document.getElementById('zoom-engine');
+    const artboard = document.getElementById('artboard');
+
+    if (!engine || !artboard) return;
+
+    // 1. 시각적 확대 적용 (0,0 기준)
+    engine.style.transform = `scale(${zoomScale})`;
+    
+    // 2. [수정 핵심] 엔진의 크기를 '배율'로 곱하지 마세요! 
+    // 원본 크기(offsetWidth)로 고정해야 이중 공백이 생기지 않습니다.
+    engine.style.width = artboard.offsetWidth + "px";
+    engine.style.height = artboard.offsetHeight + "px";
+
+    // 3. 배율 표시 업데이트
+    const zoomValDisp = document.getElementById('zoom-val');
+    if(zoomValDisp) zoomValDisp.innerText = Math.round(zoomScale * 100) + '%';
+}
+
+function resetZoom() { 
+    const slider = document.getElementById('zoom-range');
+    if(slider) slider.value = 1;
+    manualZoom(1); 
+}
+
+/* 4. 그리기 엔진 (기존 로직 보존) */
+function setDrawMode(m) {
+    mode = m;
+    drawLayer.classList.toggle('active', m === 'pen' || m === 'eraser');
+    document.getElementById('m-pen')?.classList.toggle('active', m === 'pen');
+    document.getElementById('m-eraser')?.classList.toggle('active', m === 'eraser');
+}
+
+/* 캔버스 그리기 좌표 보정 (줌 배율 반영) */
+function initDrawing() {
+    const getXY = (e) => {
+        const rect = drawLayer.getBoundingClientRect();
+        // getBoundingClientRect는 화면상의 실제 픽셀을 반환하므로 
+        // 줌 배율로 나누어 원래 아트보드 좌표로 변환
+        return { 
+            x: (e.clientX - rect.left) / zoomScale, 
+            y: (e.clientY - rect.top) / zoomScale 
+        };
+    };
+    
+    drawLayer.onmousedown = (e) => {
+        if(mode !== 'pen' && mode !== 'eraser') return;
+        isDrawing = true;
+        const p = getXY(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    };
+    
+    drawLayer.onmousemove = (e) => {
+        if(!isDrawing) return;
+        const p = getXY(e);
+        ctx.lineWidth = document.getElementById('p-weight').value;
+        ctx.lineCap = 'round';
+        if(mode === 'eraser') {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.lineWidth *= 4;
+        } else {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = document.getElementById('p-color').value;
+        }
+        ctx.lineTo(p.x, p.y); ctx.stroke();
+    };
+    drawLayer.onmouseup = () => isDrawing = false;
+}
+
+function clearCanvas() { if(confirm('전체 삭제 하시겠습니까?')) ctx.clearRect(0,0,drawLayer.width,drawLayer.height); }
+
+/* 5. 객체 관리 (텍스트, 이미지 추가 및 순서 변경) */
+function addText() { 
+addObject({ type:'text', content:'텍스트 입력', x:150, y:150, z:100, size:16, color:'#ffffff', font:'Pretendard' }); 
+}
+
+function addObject(d) {
+    if (d.type === 'img') {
+        const exists = Array.from(document.querySelectorAll('.movable img')).some(img => img.src === d.content);
+        if (exists) { alert('이미 추가된 에셋입니다.'); return; }
+    }
+
+    // --- [중앙 배치 로직 추가 시작] ---
+    // 만약 x, y 좌표가 지정되지 않았거나 150(기본값)이라면 중앙으로 계산
+    if (d.x === 150 || d.x === 50 || !d.x) { 
+        const artWidth = artboard.offsetWidth;
+        const artHeight = artboard.offsetHeight;
+        
+        // 이미지 너비(d.w)가 있으면 그 절반을 빼고, 없으면 대략 50px을 뺌
+        const offsetW = (d.w || 100) / 2;
+        const offsetH = (d.type === 'text' ? 20 : (d.w || 100) / 2);
+
+        d.x = (artWidth / 2) - offsetW;
+        d.y = (artHeight / 2) - offsetH;
+    }
+    // --- [중앙 배치 로직 추가 끝] ---
+
+    const wrap = document.createElement('div');
+    wrap.className = 'movable';
+    wrap.style.left = d.x + 'px'; 
+    wrap.style.top = d.y + 'px'; 
+    wrap.style.zIndex = d.z ? Math.min(d.z, 499) : 100;
+
+    d.rot = d.rot || 0; 
+    d.w = d.w || (d.type === 'img' ? 40 : 100); 
+
+    const inner = d.type === 'text' ? document.createElement('div') : document.createElement('img');
+    if(d.type === 'text') {
+        inner.className = 'text-inner'; inner.innerText = d.content;
+        inner.style.fontSize = d.size + 'pt'; inner.style.color = d.color;
+        inner.style.fontFamily = d.font;
+    } else {
+        inner.src = d.content; 
+        inner.style.width = d.w + 'px'; 
+        inner.draggable = false;
+    }
+    wrap.appendChild(inner);
+
+    // ... (이후 핸들러 및 이벤트 코드는 기존과 동일하게 유지)
+    const hRot = document.createElement('div'); hRot.className = 'handle rotator'; hRot.innerHTML = '<i class="fa-solid fa-rotate"></i>';
+    const hRes = document.createElement('div'); hRes.className = 'handle resizer';
+    const hDel = document.createElement('div'); hDel.className = 'handle del-btn'; hDel.innerHTML = '×';
+    wrap.append(hRot, hRes, hDel);
+
+    if(d.type === 'text') {
+        const hEdit = document.createElement('div'); hEdit.className = 'handle edit-btn'; hEdit.innerHTML = '<i class="fa-solid fa-pen"></i>';
+        wrap.appendChild(hEdit);
+        hEdit.onmousedown = (e) => {
+            e.stopPropagation();
+            const isEd = inner.contentEditable === "true";
+            inner.contentEditable = !isEd;
+            inner.classList.toggle('editing', !isEd);
+            hEdit.innerHTML = !isEd ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-pen"></i>';
+            if(!isEd) inner.focus();
+        };
+    }
+
+    hDel.onmousedown = (e) => { e.stopPropagation(); wrap.remove(); };
+
+    wrap.onmousedown = (e) => {
+        if(e.target.closest('.edit-btn') || inner.contentEditable === "true") return;
+        e.stopPropagation();
+        selectObject(wrap, d);
+        
+        let sx = e.clientX, sy = e.clientY;
+        const rect = wrap.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const startAngle = Math.atan2(sy - cy, sx - cx);
+        const startRot = d.rot;
+
+        document.onmousemove = (m) => {
+            if (e.target.closest('.rotator')) {
+                const curAngle = Math.atan2(m.clientY - cy, m.clientX - cx);
+                d.rot = startRot + (curAngle - startAngle) * (180 / Math.PI);
+                wrap.style.transform = `rotate(${d.rot}deg)`;
+            } else if (e.target.closest('.resizer')) {
+                let dx = (m.clientX - sx) / zoomScale;
+                d.w = Math.max(30, d.w + dx);
+                if (d.type === 'img') inner.style.width = d.w + 'px';
+                else { d.size = Math.max(8, d.w / 4); inner.style.fontSize = d.size + 'pt'; }
+                sx = m.clientX;
+            } else {
+                d.x += (m.clientX - sx) / zoomScale; d.y += (m.clientY - sy) / zoomScale;
+                wrap.style.left = d.x + 'px'; wrap.style.top = d.y + 'px';
+                sx = m.clientX; sy = m.clientY;
+            }
+        };
+        document.onmouseup = () => { document.onmousemove = null; };
+    };
+    artboard.appendChild(wrap);
+    selectObject(wrap, d);
+}
+
+
+function changeOrder(type) {
+    if (!selected) return;
+    const d = selected.d; const el = selected.el;
+    const allItems = Array.from(document.querySelectorAll('.movable'));
+    const zIndices = allItems.map(item => parseInt(item.style.zIndex || 10));
+    const maxZ = Math.max(...zIndices, 10);
+    const minZ = Math.min(...zIndices, 10);
+
+    switch(type) {
+        case 'front': d.z = maxZ + 1; break;
+        case 'up': d.z += 1; break;
+        case 'down': d.z = Math.max(6, d.z - 1); break;
+        case 'back': d.z = Math.max(6, minZ - 1); break;
+    }
+    el.style.zIndex = d.z;
+}
+
+/* 6. 유틸리티 (마스크, 에셋 렌더링 등) */
+function toggleMaskVisible() {
+    const mask = document.getElementById('mask-layer');
+    const btn = document.getElementById('mask-vis-btn');
+    if(!mask) return;
+    const isHidden = mask.style.display === 'none';
+    mask.style.display = isHidden ? 'block' : 'none';
+    btn.innerHTML = isHidden ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
+    btn.style.color = isHidden ? 'var(--accent)' : '#fff';
+}
+
+function updateMaskOpacity(val) {
+    const mask = document.getElementById('mask-layer');
+    if(mask) mask.style.opacity = val;
+}
+
+function openMaskFileBrowser(e) {
+    e.stopPropagation();
+    document.getElementById('mask-file-input').click();
+}
+
+function setLayer(input, type) {
+    const file = input.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        if (type === 'mask') {
+            const ml = document.getElementById('mask-layer');
+            ml.style.backgroundImage = `url(${e.target.result})`;
+            ml.style.display = 'block';
+            document.getElementById('mask-vis-btn').style.color = 'var(--accent)';
+        } else if (type === 'bg') {
+            document.getElementById('field-bg').style.backgroundImage = `url(${e.target.result})`;
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+function renderAssets() {
+    const grid = document.getElementById('asset-grid'); grid.innerHTML = '';
+    assetLibrary[currentPopupType].forEach((src, index) => {
+        const thumb = document.createElement('div'); thumb.className = 'asset-thumb';
+        const img = document.createElement('img'); img.src = src; thumb.appendChild(img);
+        
+        const delBtn = document.createElement('div');
+        delBtn.className = 'asset-del-btn'; delBtn.innerHTML = '×';
+        delBtn.onclick = (e) => {
+            e.stopPropagation();
+            if(confirm('삭제하시겠습니까?')) {
+                document.querySelectorAll('.movable img').forEach(pi => { if(pi.src === src) pi.parentElement.remove(); });
+                assetLibrary[currentPopupType].splice(index, 1);
+                renderAssets();
+            }
+        };
+        thumb.appendChild(delBtn);
+        thumb.onclick = () => addObject({ type:'img', content:src, x:50, y:50, w:80, z:50 });
+        grid.appendChild(thumb);
+    });
+}
+
+function handleAssetUpload(input) {
+    const f = input.files[0];
+    if(f) {
+        const r = new FileReader();
+        r.onload = (e) => { assetLibrary[currentPopupType].push(e.target.result); renderAssets(); };
+        r.readAsDataURL(f);
+    }
+}
+
+function selectObject(el, d) {
+    document.querySelectorAll('.movable').forEach(m => m.classList.remove('selected'));
+    selected = { el, d }; 
+    el.classList.add('selected');
+
+    // [추가] 선택한 게 텍스트라면 툴바 UI에 현재 값 표시
+    if (d.type === 'text') {
+        document.getElementById('t-color').value = d.color || "#000000";
+        document.getElementById('t-size').value = d.size || 24;
+        document.getElementById('t-font').value = d.font || "Pretendard";
+    }
+}
+
+function deselectAll(e) {
+    if (e && e.target.closest('.movable')) return;
+    document.querySelectorAll('.movable').forEach(m => {
+        m.classList.remove('selected');
+        const i = m.querySelector('.text-inner'); if(i) i.contentEditable = false;
+    });
+    selected = null;
+}
+
+// 바깥 클릭 시 닫기 (이벤트 전파 처리 완료)
+window.addEventListener('mousedown', (e) => {
+    if(e.target.closest('.asset-popup') || e.target.closest('.tool-popup') || e.target.closest('.btn')) return;
+    document.querySelectorAll('.tool-popup, .asset-popup').forEach(p => {
+        p.classList.remove('active');
+        p.style.display = 'none';
+    });
+    document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+    deselectAll(e);
+});
+
+async function exportHighResImage() {
+    const target = document.getElementById('artboard');
+    if (!target) return;
+
+    // 작업 중임을 표시
+    document.body.style.cursor = 'wait';
+
+    try {
+        const canvas = await html2canvas(target, {
+            useCORS: true,      // 배경/마스크 이미지 로드 허용
+            scale: 4,           // 4배 고해상도 (일러스트레이터 작업용)
+            logging: false,     // 콘솔 지저분함 방지
+            allowTaint: true,   // 로컬 환경 지원
+            backgroundColor: null // 투명도 유지
+        });
+
+        // 다운로드 링크 생성
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `Tactic_Pro_HighRes_${new Date().getTime()}.png`;
+        link.href = dataUrl;
+        link.click();
+
+    } catch (error) {
+console.warn("보안 정책으로 인해 일부 이미지가 누락될 수 있습니다.");
+    } finally {
+        // 커서 복구
+        document.body.style.cursor = 'default';
+    }
+}
+
+function resetPage() {
+    if (!confirm('모든 내용을 삭제하고 초기화하시겠습니까?')) return;
+
+    // 1. 캔버스 그림 삭제
+    ctx.clearRect(0, 0, drawLayer.width, drawLayer.height);
+
+    // 2. 배치된 모든 객체(movable) 삭제
+    const objects = document.querySelectorAll('.movable');
+    objects.forEach(obj => obj.remove());
+
+    // 3. 배경 이미지 및 마스크 초기화
+    document.getElementById('field-bg').style.backgroundImage = 'none';
+    const ml = document.getElementById('mask-layer');
+    if (ml) {
+        ml.style.backgroundImage = 'none';
+        ml.style.display = 'none';
+    }
+    
+    // 4. 선택 상태 해제
+    selected = null;
+    
+    alert('초기화되었습니다.');
+}
+
+let pages = [{ canvas: null, objects: [] }]; 
+let currentPageIdx = 0;
+
+// 2. 페이지 UI 갱신 (숫자 버튼 생성)
+function updatePageUI() {
+    const list = document.getElementById('page-list');
+    if(!list) return;
+    list.innerHTML = '';
+    pages.forEach((_, idx) => {
+        const dot = document.createElement('div');
+        dot.className = `page-dot ${idx === currentPageIdx ? 'active' : ''}`;
+        dot.innerText = idx + 1;
+        dot.onclick = () => { saveCurrentPageData(); loadPageData(idx); };
+        list.appendChild(dot);
+    });
+}
+
+// 3. 현재 화면 데이터 저장
+function saveCurrentPageData() {
+    pages[currentPageIdx] = {
+        canvas: drawLayer.toDataURL(),
+        objects: Array.from(document.querySelectorAll('.movable')).map(el => {
+            const isText = !!el.querySelector('.text-inner');
+            const inner = isText ? el.querySelector('.text-inner') : el.querySelector('img');
+            return {
+                type: isText ? 'text' : 'img',
+                content: isText ? inner.innerText : inner.src,
+                x: parseFloat(el.style.left),
+                y: parseFloat(el.style.top),
+                z: el.style.zIndex,
+                w: isText ? null : parseFloat(inner.style.width),
+                size: isText ? parseFloat(inner.style.fontSize) : null,
+                color: isText ? inner.style.color : null,
+                font: isText ? inner.style.fontFamily : null,
+                rot: el.style.transform ? parseFloat(el.style.transform.replace('rotate(', '').replace('deg)', '')) : 0
+            };
+        })
+    };
+}
+
+// 4. 페이지 불러오기
+/* 페이지 추가/전환 시 호출 */
+function loadPageData(idx) {
+    saveCurrentPageData(); // 이동 전 현재 데이터 저장
+    currentPageIdx = idx;
+    const data = pages[idx];
+    
+    // 화면 초기화
+    document.querySelectorAll('.movable').forEach(el => el.remove());
+    ctx.clearRect(0, 0, drawLayer.width, drawLayer.height);
+
+    // 저장된 객체들 복구
+    if (data && data.objects) {
+        data.objects.forEach(obj => addObject(obj));
+    }
+    
+    // 저장된 그림 복구
+    if (data && data.canvas) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0);
+        img.src = data.canvas;
+    }
+    
+    updatePageUI();
+    // 페이지 이동 후 줌 배율 재적용 (스크롤 영역 갱신)
+    manualZoom(zoomScale);
+}
+
+// 5. 페이지 추가/이동
+function addPage() {
+    saveCurrentPageData();
+    pages.push({ canvas: null, objects: [] });
+    loadPageData(pages.length - 1);
+}
+
+function prevPage() { if (currentPageIdx > 0) { saveCurrentPageData(); loadPageData(currentPageIdx - 1); } }
+function nextPage() { if (currentPageIdx < pages.length - 1) { saveCurrentPageData(); loadPageData(currentPageIdx + 1); } }
+
+function applyScenario(val) {
+    const data = scenarioData[val];
+    if (!data) return;
+
+    const bgLayer = document.getElementById('field-bg');
+    const maskLayer = document.getElementById('mask-layer');
+    const maskBtn = document.getElementById('mask-vis-btn');
+
+// [핵심 추가] 시나리오 선택 시 무조건 가로(landscape) 모드로 변경
+    if (val !== 'none') {
+        artboard.classList.remove('portrait');
+        artboard.classList.add('landscape');
+        
+        // 방향이 바뀌었으므로 캔버스 크기와 줌 영역을 즉시 재계산합니다.
+        setTimeout(() => {
+            resizeCanvas();
+            manualZoom(zoomScale); 
+        }, 50);
+    }
+
+    // 1. 배경(Background) 적용
+    if (data.bg === 'none') {
+        bgLayer.style.backgroundImage = `url('./${data.bg}')`;
+    } else {
+        // 경로 주의: 실제 이미지 위치에 맞춰 수정 (예: ./img/ 또는 ./assets/)
+        bgLayer.style.backgroundImage = `url('./${data.bg}')`;
+    }
+
+    // 2. 마스크(Mask) 적용
+    if (data.mask === 'none') {
+        maskLayer.style.backgroundImage = 'none';
+        maskLayer.style.display = 'none';
+        if(maskBtn) maskBtn.style.color = '#fff';
+    } else {
+        maskLayer.style.backgroundImage = `url('./${data.mask}')`;
+        maskLayer.style.display = 'block';
+        maskLayer.style.opacity = 0.5; 
+        if(maskBtn) maskBtn.style.color = 'var(--accent)';
+    }
+    console.log(`Scenario changed to: ${val}`);
+}
+
+</script>
+</body>
+</html>

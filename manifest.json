@@ -1,0 +1,15 @@
+{
+  "name": "Studio Black Tactic PRO v1.0",
+  "short_name": "시안지",
+  "start_url": "./index.html",
+  "display": "standalone",
+"background_color": "#080808",
+  "theme_color": "#080808",
+  "icons": [
+    {
+      "src": "drawingW.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
