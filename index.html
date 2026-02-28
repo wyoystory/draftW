@@ -896,66 +896,64 @@ function addObject(d) {
     hDel.onmousedown = (e) => { e.stopPropagation(); wrap.remove(); };
 
     // --- 객체 드래그/회전/크기조절 [모든 터치 이벤트 통합] ---
-    const startHandle = (e) => {
-        if(e.target.closest('.edit-btn') || inner.contentEditable === "true") return;
-        e.stopPropagation();
-        
-        selectObject(wrap, d);
-        
-        // 터치/마우스 위치 통합
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        
-        let sx = clientX, sy = clientY;
-        const rect = wrap.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const startAngle = Math.atan2(sy - cy, sx - cx);
-        const startRot = d.rot;
+   // addObject 함수 내의 startHandle 부분만 아래 코드로 교체해 주세요.
+const startHandle = (e) => {
+    if(e.target.closest('.edit-btn') || inner.contentEditable === "true") return;
+    e.stopPropagation();
+    
+    selectObject(wrap, d);
+    
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    let sx = clientX, sy = clientY;
+    const rect = wrap.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const startAngle = Math.atan2(sy - cy, sx - cx);
+    const startRot = d.rot;
 
-        const moveHandle = (m) => {
-            const mclientX = m.touches ? m.touches[0].clientX : m.clientX;
-            const mclientY = m.touches ? m.touches[0].clientY : m.clientY;
+    const moveHandle = (m) => {
+        const mclientX = m.touches ? m.touches[0].clientX : m.clientX;
+        const mclientY = m.touches ? m.touches[0].clientY : m.clientY;
 
-            // 드래그/회전/크기조절 중 스크롤/새로고침 방지
-            if(m.cancelable) m.preventDefault();
+        // 드래그/회전/크기조절 중 스크롤/새로고침 방지
+        if(m.cancelable) m.preventDefault();
 
-            if (e.target.closest('.rotator')) {
-                const curAngle = Math.atan2(mclientY - cy, mclientX - cx);
-                d.rot = startRot + (curAngle - startAngle) * (180 / Math.PI);
-                wrap.style.transform = `rotate(${d.rot}deg)`;
-            } else if (e.target.closest('.resizer')) {
-                let dx = (mclientX - sx) / zoomScale;
-                d.w = Math.max(30, d.w + dx);
-                if (d.type === 'img') inner.style.width = d.w + 'px';
-                else { d.size = Math.max(8, d.w / 4); inner.style.fontSize = d.size + 'pt'; }
-                sx = mclientX;
-            } else {
-                d.x += (mclientX - sx) / zoomScale; d.y += (mclientY - sy) / zoomScale;
-                wrap.style.left = d.x + 'px'; wrap.style.top = d.y + 'px';
-                sx = mclientX; sy = mclientY;
-            }
-        };
+        // [핵심 수정] e.target이 아닌 현재 터치된 지점(target)을 기준으로 핸들러 판별
+        const touchX = m.touches ? m.touches[0].clientX : m.clientX;
+        const touchY = m.touches ? m.touches[0].clientY : m.clientY;
+        const elementMouseIsOver = document.elementFromPoint(touchX, touchY);
 
-        const stopHandle = () => {
-            window.removeEventListener('mousemove', moveHandle);
-            window.removeEventListener('touchmove', moveHandle);
-            window.removeEventListener('mouseup', stopHandle);
-            window.removeEventListener('touchend', stopHandle);
-        };
-
-        window.addEventListener('mousemove', moveHandle);
-        window.addEventListener('touchmove', moveHandle, {passive: false}); // 중요
-        window.addEventListener('mouseup', stopHandle);
-        window.addEventListener('touchend', stopHandle);
+        if (elementMouseIsOver && elementMouseIsOver.closest('.rotator')) {
+            const curAngle = Math.atan2(mclientY - cy, mclientX - cx);
+            d.rot = startRot + (curAngle - startAngle) * (180 / Math.PI);
+            wrap.style.transform = `rotate(${d.rot}deg)`;
+        } else if (elementMouseIsOver && elementMouseIsOver.closest('.resizer')) {
+            let dx = (mclientX - sx) / zoomScale;
+            d.w = Math.max(30, d.w + dx);
+            if (d.type === 'img') inner.style.width = d.w + 'px';
+            else { d.size = Math.max(8, d.w / 4); inner.style.fontSize = d.size + 'pt'; }
+            sx = mclientX;
+        } else {
+            d.x += (mclientX - sx) / zoomScale; d.y += (mclientY - sy) / zoomScale;
+            wrap.style.left = d.x + 'px'; wrap.style.top = d.y + 'px';
+            sx = mclientX; sy = mclientY;
+        }
     };
 
-    wrap.onmousedown = startHandle;
-    wrap.ontouchstart = startHandle;
+    const stopHandle = () => {
+        window.removeEventListener('mousemove', moveHandle);
+        window.removeEventListener('touchmove', moveHandle);
+        window.removeEventListener('mouseup', stopHandle);
+        window.removeEventListener('touchend', stopHandle);
+    };
 
-    artboard.appendChild(wrap);
-    selectObject(wrap, d);
-}
+    window.addEventListener('mousemove', moveHandle);
+    window.addEventListener('touchmove', moveHandle, {passive: false});
+    window.addEventListener('mouseup', stopHandle);
+    window.addEventListener('touchend', stopHandle);
+};
 
 
 function changeOrder(type) {
