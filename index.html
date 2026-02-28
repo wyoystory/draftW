@@ -645,7 +645,6 @@ position: absolute !important;
 let idCnt = 0, selected = null, mode = 'none', isDrawing = false;
 let zoomScale = 1;
 
-// ... (scenarioData, assetLibrary, UI 요소 변수 등 기존과 동일) ...
 const scenarioData = {
     s1: { bg: 'S.png', mask: 'S-1.png' },
     s2: { bg: 'M.png', mask: 'M-1.png' },
@@ -685,17 +684,19 @@ function toggleOri() {
     }, 50);
 }
 
-/* 텍스트 설정 동기화 함수 */
+/* 텍스트 설정 동기화 함수 [색상 변경 터치 호환] */
 function syncText() {
     if (!selected || selected.d.type !== 'text') return;
     const el = selected.el;
     const d = selected.d;
     const inner = el.querySelector('.text-inner');
 
+    // UI에서 색상/사이즈/폰트 값을 가져옴
     d.color = document.getElementById('t-color').value;
     d.size = document.getElementById('t-size').value;
     d.font = document.getElementById('t-font').value;
 
+    // 객체에 적용
     inner.style.color = d.color;
     inner.style.fontSize = d.size + 'pt';
     inner.style.fontFamily = d.font;
@@ -780,7 +781,7 @@ function resetZoom() {
     manualZoom(1); 
 }
 
-/* 4. 그리기 엔진 - [터치 스크롤 방지 필수 수정] */
+/* 4. 그리기 엔진 - [터치 새로고침 방지] */
 function setDrawMode(m) {
     mode = m;
     drawLayer.classList.toggle('active', m === 'pen' || m === 'eraser');
@@ -791,7 +792,6 @@ function setDrawMode(m) {
 function initDrawing() {
     const getXY = (e) => {
         const rect = drawLayer.getBoundingClientRect();
-        // 터치/마우스 이벤트 위치 계산 보정
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         
@@ -805,8 +805,6 @@ function initDrawing() {
         if(mode !== 'pen' && mode !== 'eraser') return;
         isDrawing = true;
         const p = getXY(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
-        
-        // 중요: 드로잉 시작 시 스크롤/새로고침 막기
         if(e.cancelable) e.preventDefault(); 
     };
     
@@ -823,19 +821,15 @@ function initDrawing() {
             ctx.strokeStyle = document.getElementById('p-color').value;
         }
         ctx.lineTo(p.x, p.y); ctx.stroke();
-        
-        // 중요: 드로잉 중 스크롤/새로고침 막기
         if(e.cancelable) e.preventDefault();
     };
     
     const stopDrawing = () => isDrawing = false;
 
-    // 마우스 이벤트
     drawLayer.onmousedown = startDrawing;
     drawLayer.onmousemove = drawing;
     window.onmouseup = stopDrawing;
 
-    // 터치 이벤트 - passive:false 필수
     drawLayer.addEventListener('touchstart', startDrawing, {passive: false});
     drawLayer.addEventListener('touchmove', drawing, {passive: false});
     window.addEventListener('touchend', stopDrawing);
@@ -843,9 +837,9 @@ function initDrawing() {
 
 function clearCanvas() { if(confirm('전체 삭제 하시겠습니까?')) ctx.clearRect(0,0,drawLayer.width,drawLayer.height); }
 
-/* 5. 객체 관리 - [터치 드래그 필수 수정] */
+/* 5. 객체 관리 - [회전 및 터치 호환 완성] */
 function addText() { 
-addObject({ type:'text', content:'텍스트 입력', x:150, y:150, z:100, size:16, color:'#ffffff', font:'Pretendard' }); 
+addObject({ type:'text', content:'텍스트 입력', x:150, y:150, z:100, size:16, color:'#000000', font:'Pretendard' }); 
 }
 
 function addObject(d) {
@@ -865,6 +859,7 @@ function addObject(d) {
     wrap.style.top = d.y + 'px'; 
     wrap.style.zIndex = d.z ? Math.min(d.z, 499) : 100;
     if(d.rot) wrap.style.transform = `rotate(${d.rot}deg)`;
+    else d.rot = 0; // 초기 회전값 설정
 
     d.w = d.w || (d.type === 'img' ? 40 : 100); 
 
@@ -900,13 +895,14 @@ function addObject(d) {
 
     hDel.onmousedown = (e) => { e.stopPropagation(); wrap.remove(); };
 
-    // --- 객체 드래그/회전/크기조절 [터치 이벤트 추가] ---
+    // --- 객체 드래그/회전/크기조절 [모든 터치 이벤트 통합] ---
     const startHandle = (e) => {
         if(e.target.closest('.edit-btn') || inner.contentEditable === "true") return;
         e.stopPropagation();
         
         selectObject(wrap, d);
         
+        // 터치/마우스 위치 통합
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         
@@ -921,7 +917,7 @@ function addObject(d) {
             const mclientX = m.touches ? m.touches[0].clientX : m.clientX;
             const mclientY = m.touches ? m.touches[0].clientY : m.clientY;
 
-            // 중요: 드래그 중 스크롤/새로고침 막기
+            // 드래그/회전/크기조절 중 스크롤/새로고침 방지
             if(m.cancelable) m.preventDefault();
 
             if (e.target.closest('.rotator')) {
@@ -980,7 +976,6 @@ function changeOrder(type) {
 }
 
 /* 6. 유틸리티 */
-// ... (나머지 utility 함수들은 기존과 동일) ...
 function toggleMaskVisible() {
     const mask = document.getElementById('mask-layer');
     const btn = document.getElementById('mask-vis-btn');
