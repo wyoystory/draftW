@@ -4,18 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Studio Black Tactic PRO v1.0</title>
-<link rel="manifest" href="manifest.json">
-    
-    <link rel="apple-touch-icon" sizes="180x180" href="drawingW.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="drawingW.png">
-    <meta name="theme-color" content="#080808">
-    
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
         :root {
             --bg-dark: #080808; --bg-sidebar: #121212; --bg-item: #252525;
@@ -467,10 +457,6 @@ position: absolute !important;
 }
 
     </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 </head>
 <body>
 
@@ -517,9 +503,7 @@ position: absolute !important;
         <div class="btn" title="회전" onclick="toggleOri()"><i class="fa-solid fa-rotate"></i></div>
         
         <div style="margin-top:auto; display:flex; flex-direction:column; gap:12px; padding-bottom:15px;">
-<div class="btn" title="고화질 이미지 저장" onclick="exportHighResImage()" style="color: #48c774;">
-    <i class="fa-solid fa-camera"></i>
-</div>
+            <div class="btn" title="이미지 저장" onclick="exportImg()" style="color:#28a745;"><i class="fa-solid fa-camera"></i></div>
             <div class="btn" title="초기화" onclick="resetPage()" style="color:var(--danger);"><i class="fa-solid fa-trash-can"></i></div>
         </div>
 
@@ -607,10 +591,10 @@ position: absolute !important;
     <select id="scenario-select" onchange="applyScenario(this.value)" 
             style="background: #1a1a1a; color: #fff; border: 1px solid #555; padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer;">
         <option value="none">신가드 사이즈</option>
-        <option value="s1">HMG-123 / 10.5cm x16.5cm</option>
-        <option value="s2">HMG-122 / 9.5cm x 14.5cm</option>
-        <option value="s3">HMG-121 / 10cm x 11.5cm</option>
-        <option value="s4">HMG-120 / 7.5cm x 9.5cm</option>
+        <option value="s1">HMG-123 10.5cm x16.5cm</option>
+        <option value="s2">HMG-122 9.5cm x 14.5cm</option>
+        <option value="s3">HMG-121 10cm x 11.5cm</option>
+        <option value="s4">HMG-120 7.5cm x 9.5cm</option>
     </select>
 </div>
 
@@ -640,8 +624,9 @@ position: absolute !important;
     </main>
 
 
+
 <script>
-/* 1. 상태 관리 */
+ /* 1. 상태 관리 */
 let idCnt = 0, selected = null, mode = 'none', isDrawing = false;
 let zoomScale = 1;
 
@@ -649,7 +634,7 @@ const scenarioData = {
     s1: { bg: 'S.png', mask: 'S-1.png' },
     s2: { bg: 'M.png', mask: 'M-1.png' },
     s3: { bg: 'L.png', mask: 'L-1.png' },
-    s4: { bg: 'XL.png', mask: 'XL.png' },
+    s4: { bg: 'XL.png', mask: 'XL-1.png' },
     none: { bg: 'none', mask: 'none' }
 };
 
@@ -663,43 +648,52 @@ const ctx = drawLayer.getContext('2d');
 window.onload = () => { 
     resizeCanvas(); 
     initDrawing(); 
-    updatePageUI(); 
+    updatePageUI(); // 페이지 목록 초기 표시
     
     requestAnimationFrame(() => {
         manualZoom(1); 
         const ws = document.getElementById('ws-area');
         if (ws) {
             ws.scrollTop = 0;
+            // 줌이 1일 때 중앙 정렬
             ws.scrollLeft = (ws.scrollWidth - ws.clientWidth) / 2;
         }
     });
 };
+
 
 function toggleOri() {
     artboard.classList.toggle('portrait');
     artboard.classList.toggle('landscape');
     setTimeout(() => {
         resizeCanvas();
-        manualZoom(zoomScale);
+        manualZoom(zoomScale); // 회전된 크기에 맞춰 스크롤 영역 재계산
     }, 50);
 }
 
-/* 텍스트 설정 동기화 함수 [색상 변경 터치 호환] */
+/* 텍스트 설정 동기화 함수 */
 function syncText() {
+    // 1. 현재 선택된 객체가 있고, 그 타입이 텍스트인지 확인
     if (!selected || selected.d.type !== 'text') return;
-    const el = selected.el;
-    const d = selected.d;
-    const inner = el.querySelector('.text-inner');
 
-    // UI에서 색상/사이즈/폰트 값을 가져옴
-    d.color = document.getElementById('t-color').value;
-    d.size = document.getElementById('t-size').value;
-    d.font = document.getElementById('t-font').value;
+    const el = selected.el;      // 전체를 감싸는 .movable 레이어
+    const d = selected.d;        // 데이터 객체
+    const inner = el.querySelector('.text-inner'); // 실제 글자가 적힌 div
 
-    // 객체에 적용
-    inner.style.color = d.color;
-    inner.style.fontSize = d.size + 'pt';
-    inner.style.fontFamily = d.font;
+    // 2. 입력창에서 값 가져오기
+    const newColor = document.getElementById('t-color').value;
+    const newSize = document.getElementById('t-size').value;
+    const newFont = document.getElementById('t-font').value;
+
+    // 3. 데이터 업데이트
+    d.color = newColor;
+    d.size = newSize;
+    d.font = newFont;
+
+    // 4. 화면(DOM)에 즉시 반영
+    inner.style.color = newColor;
+    inner.style.fontSize = newSize + 'pt';
+    inner.style.fontFamily = newFont;
 }
 
 function resizeCanvas() {
@@ -707,7 +701,7 @@ function resizeCanvas() {
     drawLayer.height = artboard.offsetHeight;
 }
 
-/* 2. 팝업 제어 */
+/* 2. 팝업 제어 (사이드바 에셋 & 마스크 통합) */
 function togglePopup(type, event) {
     if (event) {
         event.preventDefault();
@@ -717,14 +711,17 @@ function togglePopup(type, event) {
     const assetPopup = document.getElementById('asset-popup');
     const maskPopup = document.getElementById('mask-side-popup');
     
+    // 현재 클릭한 팝업의 타겟 결정
     let target = (type === 'mask') ? maskPopup : assetPopup;
     const isOpen = target.classList.contains('active');
 
+    // 1. 모든 팝업 초기화 (다른 창 닫기)
     document.querySelectorAll('.asset-popup, .tool-popup').forEach(p => {
         p.classList.remove('active');
         p.style.display = 'none';
     });
 
+    // 2. 상태에 따라 열기/닫기
     if (!isOpen) {
         if (type === 'img' || type === 'pattern') {
             currentPopupType = type;
@@ -739,6 +736,7 @@ function togglePopup(type, event) {
     }
 }
 
+// 상단 툴바 전용 (기존 로직 유지)
 function toggleToolPopup(e, id) {
     if(e) e.stopPropagation();
     const popup = document.getElementById(id);
@@ -765,12 +763,18 @@ function manualZoom(val) {
     zoomScale = parseFloat(val);
     const engine = document.getElementById('zoom-engine');
     const artboard = document.getElementById('artboard');
+
     if (!engine || !artboard) return;
 
+    // 1. 시각적 확대 적용 (0,0 기준)
     engine.style.transform = `scale(${zoomScale})`;
+    
+    // 2. [수정 핵심] 엔진의 크기를 '배율'로 곱하지 마세요! 
+    // 원본 크기(offsetWidth)로 고정해야 이중 공백이 생기지 않습니다.
     engine.style.width = artboard.offsetWidth + "px";
     engine.style.height = artboard.offsetHeight + "px";
 
+    // 3. 배율 표시 업데이트
     const zoomValDisp = document.getElementById('zoom-val');
     if(zoomValDisp) zoomValDisp.innerText = Math.round(zoomScale * 100) + '%';
 }
@@ -781,7 +785,7 @@ function resetZoom() {
     manualZoom(1); 
 }
 
-/* 4. 그리기 엔진 - [터치 새로고침 방지] */
+/* 4. 그리기 엔진 (기존 로직 보존) */
 function setDrawMode(m) {
     mode = m;
     drawLayer.classList.toggle('active', m === 'pen' || m === 'eraser');
@@ -789,26 +793,25 @@ function setDrawMode(m) {
     document.getElementById('m-eraser')?.classList.toggle('active', m === 'eraser');
 }
 
+/* 캔버스 그리기 좌표 보정 (줌 배율 반영) */
 function initDrawing() {
     const getXY = (e) => {
         const rect = drawLayer.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        
+        // getBoundingClientRect는 화면상의 실제 픽셀을 반환하므로 
+        // 줌 배율로 나누어 원래 아트보드 좌표로 변환
         return { 
-            x: (clientX - rect.left) / zoomScale, 
-            y: (clientY - rect.top) / zoomScale 
+            x: (e.clientX - rect.left) / zoomScale, 
+            y: (e.clientY - rect.top) / zoomScale 
         };
     };
     
-    const startDrawing = (e) => {
+    drawLayer.onmousedown = (e) => {
         if(mode !== 'pen' && mode !== 'eraser') return;
         isDrawing = true;
         const p = getXY(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
-        if(e.cancelable) e.preventDefault(); 
     };
     
-    const drawing = (e) => {
+    drawLayer.onmousemove = (e) => {
         if(!isDrawing) return;
         const p = getXY(e);
         ctx.lineWidth = document.getElementById('p-weight').value;
@@ -821,25 +824,15 @@ function initDrawing() {
             ctx.strokeStyle = document.getElementById('p-color').value;
         }
         ctx.lineTo(p.x, p.y); ctx.stroke();
-        if(e.cancelable) e.preventDefault();
     };
-    
-    const stopDrawing = () => isDrawing = false;
-
-    drawLayer.onmousedown = startDrawing;
-    drawLayer.onmousemove = drawing;
-    window.onmouseup = stopDrawing;
-
-    drawLayer.addEventListener('touchstart', startDrawing, {passive: false});
-    drawLayer.addEventListener('touchmove', drawing, {passive: false});
-    window.addEventListener('touchend', stopDrawing);
+    drawLayer.onmouseup = () => isDrawing = false;
 }
 
 function clearCanvas() { if(confirm('전체 삭제 하시겠습니까?')) ctx.clearRect(0,0,drawLayer.width,drawLayer.height); }
 
-/* 5. 객체 관리 - [회전 및 터치 호환 완성] */
+/* 5. 객체 관리 (텍스트, 이미지 추가 및 순서 변경) */
 function addText() { 
-addObject({ type:'text', content:'텍스트 입력', x:150, y:150, z:100, size:16, color:'#000000', font:'Pretendard' }); 
+addObject({ type:'text', content:'텍스트 입력', x:150, y:150, z:100, size:16, color:'#ffffff', font:'Pretendard' }); 
 }
 
 function addObject(d) {
@@ -848,19 +841,13 @@ function addObject(d) {
         if (exists) { alert('이미 추가된 에셋입니다.'); return; }
     }
 
-    if (d.x === 150 || d.x === 50 || !d.x) { 
-        d.x = (artboard.offsetWidth / 2) - (d.w || 100) / 2;
-        d.y = (artboard.offsetHeight / 2) - (d.type === 'text' ? 20 : (d.w || 100) / 2);
-    }
-
     const wrap = document.createElement('div');
     wrap.className = 'movable';
-    wrap.style.left = d.x + 'px'; 
-    wrap.style.top = d.y + 'px'; 
+    wrap.style.left = d.x + 'px'; wrap.style.top = d.y + 'px'; wrap.style.zIndex = d.z;
     wrap.style.zIndex = d.z ? Math.min(d.z, 499) : 100;
-    if(d.rot) wrap.style.transform = `rotate(${d.rot}deg)`;
-    else d.rot = 0; // 초기 회전값 설정
 
+    // [시안 최적화] 기본 회전값 0, 이미지 기본 너비를 100 -> 40으로 축소
+    d.rot = d.rot || 0; 
     d.w = d.w || (d.type === 'img' ? 40 : 100); 
 
     const inner = d.type === 'text' ? document.createElement('div') : document.createElement('img');
@@ -870,7 +857,7 @@ function addObject(d) {
         inner.style.fontFamily = d.font;
     } else {
         inner.src = d.content; 
-        inner.style.width = d.w + 'px'; 
+        inner.style.width = d.w + 'px'; // 여기서 40px로 적용됨
         inner.draggable = false;
     }
     wrap.appendChild(inner);
@@ -895,66 +882,40 @@ function addObject(d) {
 
     hDel.onmousedown = (e) => { e.stopPropagation(); wrap.remove(); };
 
-    // --- 객체 드래그/회전/크기조절 [모든 터치 이벤트 통합] ---
-   // addObject 함수 내의 startHandle 부분만 아래 코드로 교체해 주세요.
-const startHandle = (e) => {
-    if(e.target.closest('.edit-btn') || inner.contentEditable === "true") return;
-    e.stopPropagation();
-    
+    wrap.onmousedown = (e) => {
+        if(e.target.closest('.edit-btn') || inner.contentEditable === "true") return;
+        e.stopPropagation();
+        selectObject(wrap, d);
+        
+        let sx = e.clientX, sy = e.clientY;
+        const rect = wrap.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const startAngle = Math.atan2(sy - cy, sx - cx);
+        const startRot = d.rot;
+
+        document.onmousemove = (m) => {
+            if (e.target.closest('.rotator')) {
+                const curAngle = Math.atan2(m.clientY - cy, m.clientX - cx);
+                d.rot = startRot + (curAngle - startAngle) * (180 / Math.PI);
+                wrap.style.transform = `rotate(${d.rot}deg)`;
+            } else if (e.target.closest('.resizer')) {
+                let dx = (m.clientX - sx) / zoomScale;
+                d.w = Math.max(30, d.w + dx);
+                if (d.type === 'img') inner.style.width = d.w + 'px';
+                else { d.size = Math.max(8, d.w / 4); inner.style.fontSize = d.size + 'pt'; }
+                sx = m.clientX;
+            } else {
+                d.x += (m.clientX - sx) / zoomScale; d.y += (m.clientY - sy) / zoomScale;
+                wrap.style.left = d.x + 'px'; wrap.style.top = d.y + 'px';
+                sx = m.clientX; sy = m.clientY;
+            }
+        };
+        document.onmouseup = () => { document.onmousemove = null; };
+    };
+    artboard.appendChild(wrap);
     selectObject(wrap, d);
-    
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    
-    let sx = clientX, sy = clientY;
-    const rect = wrap.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const startAngle = Math.atan2(sy - cy, sx - cx);
-    const startRot = d.rot;
-
-    const moveHandle = (m) => {
-        const mclientX = m.touches ? m.touches[0].clientX : m.clientX;
-        const mclientY = m.touches ? m.touches[0].clientY : m.clientY;
-
-        // 드래그/회전/크기조절 중 스크롤/새로고침 방지
-        if(m.cancelable) m.preventDefault();
-
-        // [핵심 수정] e.target이 아닌 현재 터치된 지점(target)을 기준으로 핸들러 판별
-        const touchX = m.touches ? m.touches[0].clientX : m.clientX;
-        const touchY = m.touches ? m.touches[0].clientY : m.clientY;
-        const elementMouseIsOver = document.elementFromPoint(touchX, touchY);
-
-        if (elementMouseIsOver && elementMouseIsOver.closest('.rotator')) {
-            const curAngle = Math.atan2(mclientY - cy, mclientX - cx);
-            d.rot = startRot + (curAngle - startAngle) * (180 / Math.PI);
-            wrap.style.transform = `rotate(${d.rot}deg)`;
-        } else if (elementMouseIsOver && elementMouseIsOver.closest('.resizer')) {
-            let dx = (mclientX - sx) / zoomScale;
-            d.w = Math.max(30, d.w + dx);
-            if (d.type === 'img') inner.style.width = d.w + 'px';
-            else { d.size = Math.max(8, d.w / 4); inner.style.fontSize = d.size + 'pt'; }
-            sx = mclientX;
-        } else {
-            d.x += (mclientX - sx) / zoomScale; d.y += (mclientY - sy) / zoomScale;
-            wrap.style.left = d.x + 'px'; wrap.style.top = d.y + 'px';
-            sx = mclientX; sy = mclientY;
-        }
-    };
-
-    const stopHandle = () => {
-        window.removeEventListener('mousemove', moveHandle);
-        window.removeEventListener('touchmove', moveHandle);
-        window.removeEventListener('mouseup', stopHandle);
-        window.removeEventListener('touchend', stopHandle);
-    };
-
-    window.addEventListener('mousemove', moveHandle);
-    window.addEventListener('touchmove', moveHandle, {passive: false});
-    window.addEventListener('mouseup', stopHandle);
-    window.addEventListener('touchend', stopHandle);
-};
-
+}
 
 function changeOrder(type) {
     if (!selected) return;
@@ -973,7 +934,7 @@ function changeOrder(type) {
     el.style.zIndex = d.z;
 }
 
-/* 6. 유틸리티 */
+/* 6. 유틸리티 (마스크, 에셋 렌더링 등) */
 function toggleMaskVisible() {
     const mask = document.getElementById('mask-layer');
     const btn = document.getElementById('mask-vis-btn');
@@ -987,6 +948,11 @@ function toggleMaskVisible() {
 function updateMaskOpacity(val) {
     const mask = document.getElementById('mask-layer');
     if(mask) mask.style.opacity = val;
+}
+
+function openMaskFileBrowser(e) {
+    e.stopPropagation();
+    document.getElementById('mask-file-input').click();
 }
 
 function setLayer(input, type) {
@@ -1041,6 +1007,7 @@ function selectObject(el, d) {
     selected = { el, d }; 
     el.classList.add('selected');
 
+    // [추가] 선택한 게 텍스트라면 툴바 UI에 현재 값 표시
     if (d.type === 'text') {
         document.getElementById('t-color').value = d.color || "#000000";
         document.getElementById('t-size').value = d.size || 24;
@@ -1057,6 +1024,7 @@ function deselectAll(e) {
     selected = null;
 }
 
+// 바깥 클릭 시 닫기 (이벤트 전파 처리 완료)
 window.addEventListener('mousedown', (e) => {
     if(e.target.closest('.asset-popup') || e.target.closest('.tool-popup') || e.target.closest('.btn')) return;
     document.querySelectorAll('.tool-popup, .asset-popup').forEach(p => {
@@ -1067,45 +1035,58 @@ window.addEventListener('mousedown', (e) => {
     deselectAll(e);
 });
 
-async function exportHighResImage() {
+/* 이미지 저장 시 줌 배율 초기화 후 저장 (화질 깨짐 방지) */
+function exportImg() {
     const target = document.getElementById('artboard');
-    if (!target) return;
-    document.body.style.cursor = 'wait';
-
-    try {
-        const canvas = await html2canvas(target, {
-            useCORS: true,
-            scale: 4,
-            logging: false,
-            allowTaint: true,
-            backgroundColor: null
-        });
-        const dataUrl = canvas.toDataURL('image/png');
+    const originalTransform = document.getElementById('zoom-engine').style.transform;
+    
+    // 1. 선택 해제 및 줌 일시적 초기화 (캡처 왜곡 방지)
+    deselectAll();
+    document.getElementById('zoom-engine').style.transform = 'scale(1)';
+    
+    html2canvas(target, {
+        useCORS: true,
+        scale: 2, // 고화질
+        logging: false
+    }).then(canvas => {
         const link = document.createElement('a');
-        link.download = `Tactic_Pro_HighRes_${new Date().getTime()}.png`;
-        link.href = dataUrl;
+        link.download = `Tactic_Page_${currentPageIdx + 1}.png`;
+        link.href = canvas.toDataURL();
         link.click();
-    } catch (error) {
-        console.warn("보안 정책으로 인해 일부 이미지가 누락될 수 있습니다.");
-    } finally {
-        document.body.style.cursor = 'default';
-    }
+        
+        // 2. 원래 줌 배율로 복구
+        document.getElementById('zoom-engine').style.transform = originalTransform;
+    });
 }
 
 function resetPage() {
     if (!confirm('모든 내용을 삭제하고 초기화하시겠습니까?')) return;
+
+    // 1. 캔버스 그림 삭제
     ctx.clearRect(0, 0, drawLayer.width, drawLayer.height);
-    document.querySelectorAll('.movable').forEach(obj => obj.remove());
+
+    // 2. 배치된 모든 객체(movable) 삭제
+    const objects = document.querySelectorAll('.movable');
+    objects.forEach(obj => obj.remove());
+
+    // 3. 배경 이미지 및 마스크 초기화
     document.getElementById('field-bg').style.backgroundImage = 'none';
     const ml = document.getElementById('mask-layer');
-    if (ml) { ml.style.backgroundImage = 'none'; ml.style.display = 'none'; }
+    if (ml) {
+        ml.style.backgroundImage = 'none';
+        ml.style.display = 'none';
+    }
+    
+    // 4. 선택 상태 해제
     selected = null;
+    
     alert('초기화되었습니다.');
 }
 
 let pages = [{ canvas: null, objects: [] }]; 
 let currentPageIdx = 0;
 
+// 2. 페이지 UI 갱신 (숫자 버튼 생성)
 function updatePageUI() {
     const list = document.getElementById('page-list');
     if(!list) return;
@@ -1119,6 +1100,7 @@ function updatePageUI() {
     });
 }
 
+// 3. 현재 화면 데이터 저장
 function saveCurrentPageData() {
     pages[currentPageIdx] = {
         canvas: drawLayer.toDataURL(),
@@ -1141,18 +1123,23 @@ function saveCurrentPageData() {
     };
 }
 
+// 4. 페이지 불러오기
+/* 페이지 추가/전환 시 호출 */
 function loadPageData(idx) {
-    saveCurrentPageData();
+    saveCurrentPageData(); // 이동 전 현재 데이터 저장
     currentPageIdx = idx;
     const data = pages[idx];
     
+    // 화면 초기화
     document.querySelectorAll('.movable').forEach(el => el.remove());
     ctx.clearRect(0, 0, drawLayer.width, drawLayer.height);
 
+    // 저장된 객체들 복구
     if (data && data.objects) {
         data.objects.forEach(obj => addObject(obj));
     }
     
+    // 저장된 그림 복구
     if (data && data.canvas) {
         const img = new Image();
         img.onload = () => ctx.drawImage(img, 0, 0);
@@ -1160,9 +1147,11 @@ function loadPageData(idx) {
     }
     
     updatePageUI();
+    // 페이지 이동 후 줌 배율 재적용 (스크롤 영역 갱신)
     manualZoom(zoomScale);
 }
 
+// 5. 페이지 추가/이동
 function addPage() {
     saveCurrentPageData();
     pages.push({ canvas: null, objects: [] });
@@ -1180,22 +1169,27 @@ function applyScenario(val) {
     const maskLayer = document.getElementById('mask-layer');
     const maskBtn = document.getElementById('mask-vis-btn');
 
+// [핵심 추가] 시나리오 선택 시 무조건 가로(landscape) 모드로 변경
     if (val !== 'none') {
         artboard.classList.remove('portrait');
         artboard.classList.add('landscape');
         
+        // 방향이 바뀌었으므로 캔버스 크기와 줌 영역을 즉시 재계산합니다.
         setTimeout(() => {
             resizeCanvas();
             manualZoom(zoomScale); 
         }, 50);
     }
 
+    // 1. 배경(Background) 적용
     if (data.bg === 'none') {
-        bgLayer.style.backgroundImage = 'none';
+        bgLayer.style.backgroundImage = `url('./${data.bg}')`;
     } else {
+        // 경로 주의: 실제 이미지 위치에 맞춰 수정 (예: ./img/ 또는 ./assets/)
         bgLayer.style.backgroundImage = `url('./${data.bg}')`;
     }
 
+    // 2. 마스크(Mask) 적용
     if (data.mask === 'none') {
         maskLayer.style.backgroundImage = 'none';
         maskLayer.style.display = 'none';
@@ -1206,7 +1200,9 @@ function applyScenario(val) {
         maskLayer.style.opacity = 0.5; 
         if(maskBtn) maskBtn.style.color = 'var(--accent)';
     }
+    console.log(`Scenario changed to: ${val}`);
 }
+
 </script>
 </body>
 </html>
