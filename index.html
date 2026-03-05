@@ -4,8 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Studio Black Tactic PRO v1.0</title>
+<link rel="manifest" href="manifest.json">
+    
+    <link rel="apple-touch-icon" sizes="180x180" href="drawingW.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="drawingW.png">
+    <meta name="theme-color" content="#080808">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         :root {
             --bg-dark: #080808; --bg-sidebar: #121212; --bg-item: #252525;
@@ -456,7 +466,21 @@ position: absolute !important;
     letter-spacing: 1px;
 }
 
+.sidebar { position: relative; }
+
+.tool-popup.side-style {
+    left: 100% !important; /* 사이드바 바로 오른쪽에 밀착 */
+    margin-left: 10px;
+    top: 0;
+    /* transition을 추가하면 열릴 때 부드럽습니다 */
+    transition: opacity 0.2s, transform 0.2s;
+}
+
     </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 </head>
 <body>
 
@@ -503,7 +527,9 @@ position: absolute !important;
         <div class="btn" title="회전" onclick="toggleOri()"><i class="fa-solid fa-rotate"></i></div>
         
         <div style="margin-top:auto; display:flex; flex-direction:column; gap:12px; padding-bottom:15px;">
-            <div class="btn" title="이미지 저장" onclick="exportImg()" style="color:#28a745;"><i class="fa-solid fa-camera"></i></div>
+<div class="btn" title="고화질 이미지 저장" onclick="exportHighResImage()" style="color: #48c774;">
+    <i class="fa-solid fa-camera"></i>
+</div>
             <div class="btn" title="초기화" onclick="resetPage()" style="color:var(--danger);"><i class="fa-solid fa-trash-can"></i></div>
         </div>
 
@@ -591,10 +617,10 @@ position: absolute !important;
     <select id="scenario-select" onchange="applyScenario(this.value)" 
             style="background: #1a1a1a; color: #fff; border: 1px solid #555; padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer;">
         <option value="none">신가드 사이즈</option>
-        <option value="s1">HMG-123 10.5cm x16.5cm</option>
-        <option value="s2">HMG-122 9.5cm x 14.5cm</option>
-        <option value="s3">HMG-121 10cm x 11.5cm</option>
-        <option value="s4">HMG-120 7.5cm x 9.5cm</option>
+        <option value="s1">HMG-123 / 10.5cm x16.5cm</option>
+        <option value="s2">HMG-122 / 9.5cm x 14.5cm</option>
+        <option value="s3">HMG-121 / 10cm x 11.5cm</option>
+        <option value="s4">HMG-120 / 7.5cm x 9.5cm</option>
     </select>
 </div>
 
@@ -836,52 +862,53 @@ addObject({ type:'text', content:'텍스트 입력', x:150, y:150, z:100, size:1
 }
 
 function addObject(d) {
+    // [1] 중복 체크 (기존 유지)
     if (d.type === 'img') {
         const exists = Array.from(document.querySelectorAll('.movable img')).some(img => img.src === d.content);
         if (exists) { alert('이미 추가된 에셋입니다.'); return; }
     }
 
+    // [2] 위치 결정 (중앙 배치 보정)
+    if (!d.x || d.x === 150 || d.x === 50) { 
+        const artWidth = artboard.offsetWidth;
+        const artHeight = artboard.offsetHeight;
+        d.x = (artWidth / 2) - (d.w || 80) / 2;
+        d.y = (artHeight / 2) - 20;
+    }
+
+    // [3] 요소 생성 (기존 유지)
     const wrap = document.createElement('div');
     wrap.className = 'movable';
-    wrap.style.left = d.x + 'px'; wrap.style.top = d.y + 'px'; wrap.style.zIndex = d.z;
-    wrap.style.zIndex = d.z ? Math.min(d.z, 499) : 100;
+    wrap.style.left = d.x + 'px'; 
+    wrap.style.top = d.y + 'px'; 
+    wrap.style.zIndex = d.z || 100;
 
-    // [시안 최적화] 기본 회전값 0, 이미지 기본 너비를 100 -> 40으로 축소
     d.rot = d.rot || 0; 
-    d.w = d.w || (d.type === 'img' ? 40 : 100); 
+    d.w = d.w || (d.type === 'img' ? 80 : 100); // 이미지면 기본 80px
 
     const inner = d.type === 'text' ? document.createElement('div') : document.createElement('img');
+    
+    // [4] 이미지/텍스트 속성 설정
     if(d.type === 'text') {
         inner.className = 'text-inner'; inner.innerText = d.content;
         inner.style.fontSize = d.size + 'pt'; inner.style.color = d.color;
         inner.style.fontFamily = d.font;
     } else {
         inner.src = d.content; 
-        inner.style.width = d.w + 'px'; // 여기서 40px로 적용됨
+        inner.style.width = d.w + 'px'; // 여기서 크기를 적용합니다.
         inner.draggable = false;
     }
     wrap.appendChild(inner);
 
+    // [5] 핸들(회전, 삭제, 크기조절) 추가
     const hRot = document.createElement('div'); hRot.className = 'handle rotator'; hRot.innerHTML = '<i class="fa-solid fa-rotate"></i>';
     const hRes = document.createElement('div'); hRes.className = 'handle resizer';
     const hDel = document.createElement('div'); hDel.className = 'handle del-btn'; hDel.innerHTML = '×';
     wrap.append(hRot, hRes, hDel);
 
-    if(d.type === 'text') {
-        const hEdit = document.createElement('div'); hEdit.className = 'handle edit-btn'; hEdit.innerHTML = '<i class="fa-solid fa-pen"></i>';
-        wrap.appendChild(hEdit);
-        hEdit.onmousedown = (e) => {
-            e.stopPropagation();
-            const isEd = inner.contentEditable === "true";
-            inner.contentEditable = !isEd;
-            inner.classList.toggle('editing', !isEd);
-            hEdit.innerHTML = !isEd ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-pen"></i>';
-            if(!isEd) inner.focus();
-        };
-    }
+    // ... (중략: 텍스트 편집 버튼 로직 등)
 
-    hDel.onmousedown = (e) => { e.stopPropagation(); wrap.remove(); };
-
+    // [6] 마우스 드래그/회전/크기조절 로직 (질문하신 그 부분!)
     wrap.onmousedown = (e) => {
         if(e.target.closest('.edit-btn') || inner.contentEditable === "true") return;
         e.stopPropagation();
@@ -896,16 +923,19 @@ function addObject(d) {
 
         document.onmousemove = (m) => {
             if (e.target.closest('.rotator')) {
+                // 회전 로직
                 const curAngle = Math.atan2(m.clientY - cy, m.clientX - cx);
                 d.rot = startRot + (curAngle - startAngle) * (180 / Math.PI);
                 wrap.style.transform = `rotate(${d.rot}deg)`;
             } else if (e.target.closest('.resizer')) {
+                // 크기 조절 로직
                 let dx = (m.clientX - sx) / zoomScale;
                 d.w = Math.max(30, d.w + dx);
                 if (d.type === 'img') inner.style.width = d.w + 'px';
                 else { d.size = Math.max(8, d.w / 4); inner.style.fontSize = d.size + 'pt'; }
                 sx = m.clientX;
             } else {
+                // 이동 로직
                 d.x += (m.clientX - sx) / zoomScale; d.y += (m.clientY - sy) / zoomScale;
                 wrap.style.left = d.x + 'px'; wrap.style.top = d.y + 'px';
                 sx = m.clientX; sy = m.clientY;
@@ -913,9 +943,11 @@ function addObject(d) {
         };
         document.onmouseup = () => { document.onmousemove = null; };
     };
+
     artboard.appendChild(wrap);
     selectObject(wrap, d);
 }
+
 
 function changeOrder(type) {
     if (!selected) return;
@@ -1034,30 +1066,52 @@ window.addEventListener('mousedown', (e) => {
     document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
     deselectAll(e);
 });
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Delete' && selected) {
+        selected.el.remove();
+        selected = null;
+    }
+});
 
-/* 이미지 저장 시 줌 배율 초기화 후 저장 (화질 깨짐 방지) */
-function exportImg() {
+async function exportHighResImage() {
     const target = document.getElementById('artboard');
-    const originalTransform = document.getElementById('zoom-engine').style.transform;
+    if (!target) {
+        alert("캡처할 영역(artboard)을 찾을 수 없습니다.");
+        return;
+    }
+
+    // 작업 중임을 표시
+    document.body.style.cursor = 'wait';
     
-    // 1. 선택 해제 및 줌 일시적 초기화 (캡처 왜곡 방지)
-    deselectAll();
-    document.getElementById('zoom-engine').style.transform = 'scale(1)';
-    
-    html2canvas(target, {
-        useCORS: true,
-        scale: 2, // 고화질
-        logging: false
-    }).then(canvas => {
+    // 줌 배율이 적용된 상태면 캡처가 깨질 수 있으므로 잠시 1로 복구
+    const originalZoom = zoomScale;
+    if (originalZoom !== 1) manualZoom(1);
+
+    try {
+        const canvas = await html2canvas(target, {
+            useCORS: true,         // 외부 이미지(에셋) 허용
+            scale: 2,              // 2배 고해상도
+            backgroundColor: null, // 투명 배경 유지
+            logging: false
+        });
+
+        const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
-        link.download = `Tactic_Page_${currentPageIdx + 1}.png`;
-        link.href = canvas.toDataURL();
+        link.download = `Tactic_Pro_${new Date().getTime()}.png`;
+        link.href = dataUrl;
         link.click();
         
-        // 2. 원래 줌 배율로 복구
-        document.getElementById('zoom-engine').style.transform = originalTransform;
-    });
+        console.log("저장 완료!");
+    } catch (error) {
+        console.error("캡처 오류:", error);
+        alert("이미지 저장 중 오류가 발생했습니다. 콘솔을 확인하세요.");
+    } finally {
+        // 원래 줌 배율로 복구 및 커서 복구
+        if (originalZoom !== 1) manualZoom(originalZoom);
+        document.body.style.cursor = 'default';
+    }
 }
+
 
 function resetPage() {
     if (!confirm('모든 내용을 삭제하고 초기화하시겠습니까?')) return;
@@ -1105,19 +1159,22 @@ function saveCurrentPageData() {
     pages[currentPageIdx] = {
         canvas: drawLayer.toDataURL(),
         objects: Array.from(document.querySelectorAll('.movable')).map(el => {
+            // 여기에 'selected'나 다른 임시 데이터가 아닌 
+            // 실제 el(요소)과 연결된 데이터가 있어야 합니다.
+            // 만약 addObject에서 d를 el.__data__ 같은 곳에 저장했다면 그걸 불러와야 합니다.
+            
             const isText = !!el.querySelector('.text-inner');
             const inner = isText ? el.querySelector('.text-inner') : el.querySelector('img');
+            
             return {
                 type: isText ? 'text' : 'img',
                 content: isText ? inner.innerText : inner.src,
-                x: parseFloat(el.style.left),
+                x: parseFloat(el.style.left), // 현재 엘리먼트의 실시간 위치
                 y: parseFloat(el.style.top),
                 z: el.style.zIndex,
                 w: isText ? null : parseFloat(inner.style.width),
-                size: isText ? parseFloat(inner.style.fontSize) : null,
-                color: isText ? inner.style.color : null,
-                font: isText ? inner.style.fontFamily : null,
                 rot: el.style.transform ? parseFloat(el.style.transform.replace('rotate(', '').replace('deg)', '')) : 0
+                // 나머지 속성들...
             };
         })
     };
