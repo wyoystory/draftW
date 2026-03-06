@@ -281,8 +281,23 @@ width: fit-content;    /* 실제 아트보드 크기에 맞춤 */
     pointer-events: none; /* 클릭 방해 금지 */
     z-index: 9999; /* 이전에 정한 레이어 순서 유지 */
 }
-        #draw-layer { position: absolute; inset: 0; z-index: 500; pointer-events: none; }
-        #draw-layer.active { pointer-events: auto; cursor: crosshair; }
+
+#draw-layer { 
+    position: absolute; 
+    inset: 0; 
+    z-index: 500; 
+    pointer-events: none; 
+    /* 추가: 스마트폰에서 그릴 때 화면이 스크롤되거나 확대되는 것을 방지 */
+    touch-action: none; 
+}
+
+#draw-layer.active { 
+    pointer-events: auto; 
+    cursor: crosshair; 
+    /* 추가: 펜 모드일 때 텍스트나 이미지가 선택되어 방해받지 않도록 함 */
+    user-select: none;
+    -webkit-user-select: none;
+}
 
         /* 에셋 팝업 */
 .asset-popup {
@@ -831,17 +846,27 @@ function resetZoom() {
 /* 4. 그리기 엔진 (기존 로직 보존) */
 function setDrawMode(m) {
     mode = m;
-    drawLayer.classList.toggle('active', m === 'pen' || m === 'eraser');
+    const isActive = (m === 'pen' || m === 'eraser');
+    drawLayer.classList.toggle('active', isActive);
+    
+    // 버튼 활성화 표시
     document.getElementById('m-pen')?.classList.toggle('active', m === 'pen');
     document.getElementById('m-eraser')?.classList.toggle('active', m === 'eraser');
+
+    // [핵심 추가] 펜 모드일 때 모든 movable 요소들의 클릭을 막음
+    const movables = document.querySelectorAll('.movable');
+movables.forEach(el => {
+        // 펜 모드면 클릭 통과(none), 아니면 다시 클릭 가능(auto)
+        el.style.pointerEvents = isActive ? 'none' : 'auto';
+    });
 }
 
 /* 캔버스 그리기 좌표 보정 (줌 배율 반영) */
 function initDrawing() {
     const getXY = (e) => {
         const rect = drawLayer.getBoundingClientRect();
-        // getBoundingClientRect는 화면상의 실제 픽셀을 반환하므로 
-        // 줌 배율로 나누어 원래 아트보드 좌표로 변환
+const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+        const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
         return { 
             x: (e.clientX - rect.left) / zoomScale, 
             y: (e.clientY - rect.top) / zoomScale 
@@ -928,14 +953,21 @@ function clearCanvas() { if(confirm('전체 삭제 하시겠습니까?')) ctx.cl
 
 function getXY(e) {
     const rect = drawLayer.getBoundingClientRect();
-    // 터치 이벤트면 첫 번째 손가락(touches[0]) 좌표를 사용, 아니면 마우스 좌표 사용
-    const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
-    const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
-    
+    let cx, cy;
+
+    // 터치와 마우스 좌표 추출 통합
+    if (e.touches && e.touches.length > 0) {
+        cx = e.touches[0].clientX;
+        cy = e.touches[0].clientY;
+    } else {
+        cx = e.clientX;
+        cy = e.clientY;
+    }
+
     return {
-        // 줌 배율(zoomScale)을 나누어줘야 확대 시에도 선이 손가락을 따라옵니다.
-        x: (clientX - rect.left) / zoomScale,
-        y: (clientY - rect.top) / zoomScale
+        // 화면상의 실제 위치에서 캔버스 시작점을 빼고, 현재 줌 배율로 나눔
+        x: (cx - rect.left) / zoomScale,
+        y: (cy - rect.top) / zoomScale
     };
 }
 
