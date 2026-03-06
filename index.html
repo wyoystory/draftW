@@ -134,6 +134,7 @@ transition: transform 0.2s ease;
     position: relative;
 }
 
+
 /* --- 고급 커스텀 스크롤바 디자인 --- */
 
 /* 1. 스크롤바 전체 영역 설정 */
@@ -351,11 +352,27 @@ position: absolute !important;
         .resizer { bottom: -10px; right: -10px; cursor: se-resize; }
         .edit-btn { top: -10px; left: -10px; background: #ffc107; }
 
-        .text-inner { white-space: nowrap;
-    outline: none;
-    /* 텍스트 가독성을 위한 미세한 그림자 (시안용) */
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+/* 통합된 텍스트 스타일 */
+.text-inner {
+    color: #333333;            /* 1. 기본 색상을 백색에서 검정으로 변경 */
+    cursor: move;              /* 2. 기본 상태에서는 이동 커서(손 모양) */
+    user-select: none;         /* 3. 평소에는 드래그 선택 방지 */
+    white-space: nowrap;       /* 4. 줄바꿈 방지 */
+    outline: none;             /* 5. 포커스 시 생기는 기본 테두리 제거 */
+    
+    /* 텍스트 가독성을 위한 그림자 (백색 배경엔 그림자가 있는 게 더 선명합니다) */
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5); 
+    
+    font-weight: bold;         /* 전술판 가독성을 위해 굵게 설정 (선택사항) */
 }
+
+.text-inner[contenteditable="true"] {
+    cursor: text !important;
+user-select: text;         /* 편집 중엔 글자 드래그 가능 */
+    color: #000000;            /* 편집 중에도 색상 유지 */
+}
+
+
         .text-inner.editing { background: rgba(255,255,255,0.1); border-radius: 4px; cursor: text; pointer-events: auto; }
 
         .portrait { width: 450px; height: 630px; }
@@ -831,11 +848,64 @@ function initDrawing() {
         };
     };
     
-    drawLayer.onmousedown = (e) => {
-        if(mode !== 'pen' && mode !== 'eraser') return;
-        isDrawing = true;
-        const p = getXY(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
-    };
+    // --- 그리기 및 지우개 통합 엔진 ---
+
+// 1. 시작 (눌렀을 때)
+const handleStart = (e) => {
+    if(mode !== 'pen' && mode !== 'eraser') return;
+    isDrawing = true;
+    const p = getXY(e); 
+    ctx.beginPath(); 
+    ctx.moveTo(p.x, p.y);
+    
+    // 스마트폰에서 화면이 움직이지 않게 고정
+    if (e.type === 'touchstart') e.preventDefault(); 
+};
+
+// 2. 이동 (그릴 때)
+const handleMove = (e) => {
+    if(!isDrawing) return;
+    const p = getXY(e);
+    
+    // 펜 설정 적용
+    ctx.lineWidth = document.getElementById('p-weight').value;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round'; // 선 연결을 부드럽게
+    
+    if(mode === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth *= 4; // 지우개는 좀 더 크게
+    } else {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = document.getElementById('p-color').value;
+    }
+    
+    ctx.lineTo(p.x, p.y); 
+    ctx.stroke();
+    
+    // 스마트폰에서 화면 스크롤 방지 (중요!)
+    if (e.type === 'touchmove') e.preventDefault(); 
+};
+
+// 3. 종료 (뗐을 때)
+const handleEnd = () => {
+    isDrawing = false;
+    ctx.beginPath();
+};
+
+// --- 이벤트 리스너 연결 ---
+
+// PC 마우스용
+drawLayer.onmousedown = handleStart;
+drawLayer.onmousemove = handleMove;
+drawLayer.onmouseup = handleEnd;
+drawLayer.onmouseleave = handleEnd;
+
+// 스마트폰 터치용 (passive: false가 핵심입니다)
+drawLayer.addEventListener('touchstart', handleStart, { passive: false });
+drawLayer.addEventListener('touchmove', handleMove, { passive: false });
+drawLayer.addEventListener('touchend', handleEnd);
+
     
     drawLayer.onmousemove = (e) => {
         if(!isDrawing) return;
@@ -855,6 +925,19 @@ function initDrawing() {
 }
 
 function clearCanvas() { if(confirm('전체 삭제 하시겠습니까?')) ctx.clearRect(0,0,drawLayer.width,drawLayer.height); }
+
+function getXY(e) {
+    const rect = drawLayer.getBoundingClientRect();
+    // 터치 이벤트면 첫 번째 손가락(touches[0]) 좌표를 사용, 아니면 마우스 좌표 사용
+    const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+    const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+    
+    return {
+        // 줌 배율(zoomScale)을 나누어줘야 확대 시에도 선이 손가락을 따라옵니다.
+        x: (clientX - rect.left) / zoomScale,
+        y: (clientY - rect.top) / zoomScale
+    };
+}
 
 /* 5. 객체 관리 (텍스트, 이미지 추가 및 순서 변경) */
 function addText() { 
@@ -890,8 +973,10 @@ function addObject(d) {
     
     // [4] 이미지/텍스트 속성 설정
     if(d.type === 'text') {
-        inner.className = 'text-inner'; inner.innerText = d.content;
-        inner.style.fontSize = d.size + 'pt'; inner.style.color = d.color;
+        inner.className = 'text-inner'; 
+        inner.innerText = d.content;
+        inner.style.fontSize = d.size + 'pt'; 
+        inner.style.color = '#333333';;
         inner.style.fontFamily = d.font;
     } else {
         inner.src = d.content; 
@@ -904,7 +989,36 @@ function addObject(d) {
     const hRot = document.createElement('div'); hRot.className = 'handle rotator'; hRot.innerHTML = '<i class="fa-solid fa-rotate"></i>';
     const hRes = document.createElement('div'); hRes.className = 'handle resizer';
     const hDel = document.createElement('div'); hDel.className = 'handle del-btn'; hDel.innerHTML = '×';
+
     wrap.append(hRot, hRes, hDel);
+
+// --- 텍스트 수정 버튼 복구 로직 ---
+    if (d.type === 'text') {
+        const hEdit = document.createElement('div');
+        hEdit.className = 'handle edit-btn';
+        hEdit.innerHTML = '<i class="fa-solid fa-pen"></i>'; // 연필 아이콘
+        hEdit.style.right = '40px'; // 삭제 버튼(x) 왼쪽에 배치
+        
+        hEdit.onclick = (e) => {
+            e.stopPropagation();
+            const isEditable = inner.contentEditable === "true";
+            inner.contentEditable = !isEditable;
+            if (!isEditable) {
+                inner.focus();
+                inner.style.cursor = 'text'; // 커서를 'I'자 모양으로 변경
+                wrap.style.cursor = 'default'; // 전체 박스 커서 초기화
+                hEdit.innerHTML = '<i class="fa-solid fa-check"></i>'; 
+                hEdit.classList.add('active');
+            } else {
+                inner.style.cursor = 'move'; // 다시 이동 가능한 '손 모양'으로 복구
+                wrap.style.cursor = 'move';
+                hEdit.innerHTML = '<i class="fa-solid fa-pen"></i>';
+                hEdit.classList.remove('active');
+                d.content = inner.innerText; // 수정 내용 데이터 저장
+            }
+        };
+        wrap.appendChild(hEdit);
+    }
 
 
     // [6] 마우스 드래그/회전/크기조절 로직 (질문하신 그 부분!)
