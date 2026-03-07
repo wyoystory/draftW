@@ -865,8 +865,8 @@ movables.forEach(el => {
 function initDrawing() {
     const getXY = (e) => {
         const rect = drawLayer.getBoundingClientRect();
-const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
-        const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+        // getBoundingClientRect는 화면상의 실제 픽셀을 반환하므로 
+        // 줌 배율로 나누어 원래 아트보드 좌표로 변환
         return { 
             x: (e.clientX - rect.left) / zoomScale, 
             y: (e.clientY - rect.top) / zoomScale 
