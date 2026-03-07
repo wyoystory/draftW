@@ -863,74 +863,59 @@ movables.forEach(el => {
 
 /* 캔버스 그리기 좌표 보정 (줌 배율 반영) */
 function initDrawing() {
+    // [수정] 마우스와 터치를 모두 지원하는 좌표 계산기
     const getXY = (e) => {
         const rect = drawLayer.getBoundingClientRect();
-        // getBoundingClientRect는 화면상의 실제 픽셀을 반환하므로 
-        // 줌 배율로 나누어 원래 아트보드 좌표로 변환
+        // 터치 이벤트면 touches[0]에서, 마우스면 e에서 직접 좌표 추출
+        const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+        const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+        
         return { 
-            x: (e.clientX - rect.left) / zoomScale, 
-            y: (e.clientY - rect.top) / zoomScale 
+            x: (clientX - rect.left) / zoomScale, 
+            y: (clientY - rect.top) / zoomScale 
         };
     };
-    
-    // --- 그리기 및 지우개 통합 엔진 ---
 
-// 1. 시작 (눌렀을 때)
-const handleStart = (e) => {
-    if(mode !== 'pen' && mode !== 'eraser') return;
-    isDrawing = true;
-    const p = getXY(e); 
-    ctx.beginPath(); 
-    ctx.moveTo(p.x, p.y);
-    
-    // 스마트폰에서 화면이 움직이지 않게 고정
-    if (e.type === 'touchstart') e.preventDefault(); 
-};
+    const handleStart = (e) => {
+        if(mode !== 'pen' && mode !== 'eraser') return;
+        isDrawing = true;
+        const p = getXY(e); 
+        ctx.beginPath(); 
+        ctx.moveTo(p.x, p.y);
+        // 터치 시 화면 스크롤 방지
+        if (e.cancelable) e.preventDefault(); 
+    };
 
-// 2. 이동 (그릴 때)
-const handleMove = (e) => {
-    if(!isDrawing) return;
-    const p = getXY(e);
-    
-    // 펜 설정 적용
-    ctx.lineWidth = document.getElementById('p-weight').value;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round'; // 선 연결을 부드럽게
-    
-    if(mode === 'eraser') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.lineWidth *= 4; // 지우개는 좀 더 크게
-    } else {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = document.getElementById('p-color').value;
-    }
-    
-    ctx.lineTo(p.x, p.y); 
-    ctx.stroke();
-    
-    // 스마트폰에서 화면 스크롤 방지 (중요!)
-    if (e.type === 'touchmove') e.preventDefault(); 
-};
+    const handleMove = (e) => {
+        if(!isDrawing) return;
+        const p = getXY(e);
+        ctx.lineWidth = document.getElementById('p-weight').value;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        if(mode === 'eraser') {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.lineWidth *= 4;
+        } else {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = document.getElementById('p-color').value;
+        }
+        ctx.lineTo(p.x, p.y); 
+        ctx.stroke();
+        // 터치 시 화면 스크롤 방지
+        if (e.cancelable) e.preventDefault(); 
+    };
 
-// 3. 종료 (뗐을 때)
-const handleEnd = () => {
-    isDrawing = false;
-    ctx.beginPath();
-};
+    const handleEnd = () => { isDrawing = false; ctx.beginPath(); };
 
-// --- 이벤트 리스너 연결 ---
-
-// PC 마우스용
-drawLayer.onmousedown = handleStart;
-drawLayer.onmousemove = handleMove;
-drawLayer.onmouseup = handleEnd;
-drawLayer.onmouseleave = handleEnd;
-
-// 스마트폰 터치용 (passive: false가 핵심입니다)
-drawLayer.addEventListener('touchstart', handleStart, { passive: false });
-drawLayer.addEventListener('touchmove', handleMove, { passive: false });
-drawLayer.addEventListener('touchend', handleEnd);
-
+    // [중요] 기존의 drawLayer.onmousedown 대신 addEventListener로 통합 관리
+    drawLayer.addEventListener('mousedown', handleStart);
+    drawLayer.addEventListener('mousemove', handleMove);
+    drawLayer.addEventListener('mouseup', handleEnd);
+    drawLayer.addEventListener('touchstart', handleStart, { passive: false });
+    drawLayer.addEventListener('touchmove', handleMove, { passive: false });
+    drawLayer.addEventListener('touchend', handleEnd);
+}
     
     drawLayer.onmousemove = (e) => {
         if(!isDrawing) return;
@@ -1056,9 +1041,9 @@ function addObject(d) {
     // [6] 마우스 드래그/회전/크기조절 로직 (질문하신 그 부분!)
    /* --- 모바일 터치 & PC 마우스 통합 로직 시작 --- */
 const handleStart = (e) => {
-    if(e.target.closest('.edit-btn') || inner.contentEditable === "true") return;
+    // 펜 모드이거나 수정 중이면 이동 방지
+    if(mode === 'pen' || mode === 'eraser' || e.target.closest('.edit-btn') || inner.contentEditable === "true") return;
     
-    // 터치면 첫번째 손가락 좌표, 마우스면 일반 좌표 추출
     const isTouch = e.type === 'touchstart';
     const clientX = isTouch ? e.touches[0].clientX : e.clientX;
     const clientY = isTouch ? e.touches[0].clientY : e.clientY;
@@ -1074,8 +1059,9 @@ const handleStart = (e) => {
     const startRot = d.rot;
 
     const handleMove = (m) => {
-        const moveX = isTouch ? m.touches[0].clientX : m.clientX;
-        const moveY = isTouch ? m.touches[0].clientY : m.clientY;
+        // 이동 중에도 터치 좌표인지 체크
+        const moveX = (m.touches && m.touches.length > 0) ? m.touches[0].clientX : m.clientX;
+        const moveY = (m.touches && m.touches.length > 0) ? m.touches[0].clientY : m.clientY;
 
         if (e.target.closest('.rotator')) {
             const curAngle = Math.atan2(moveY - cy, moveX - cx);
@@ -1088,23 +1074,29 @@ const handleStart = (e) => {
             else { d.size = Math.max(8, d.w / 4); inner.style.fontSize = d.size + 'pt'; }
             sx = moveX;
         } else {
+            // [핵심] 줌 배율을 반영한 이동 거리 계산
             d.x += (moveX - sx) / zoomScale; 
             d.y += (moveY - sy) / zoomScale;
             wrap.style.left = d.x + 'px'; 
             wrap.style.top = d.y + 'px';
             sx = moveX; sy = moveY;
         }
-        if(isTouch) m.preventDefault(); // 모바일 스크롤 방지
+        if(isTouch && m.cancelable) m.preventDefault(); 
     };
 
     const handleEnd = () => {
-        document.removeEventListener(isTouch ? 'touchmove' : 'mousemove', handleMove);
-        document.removeEventListener(isTouch ? 'touchend' : 'mouseup', handleEnd);
+        document.removeEventListener('mousemove', handleMove);
+        document.removeEventListener('mouseup', handleEnd);
+        document.removeEventListener('touchmove', handleMove);
+        document.removeEventListener('touchend', handleEnd);
     };
 
-    document.addEventListener(isTouch ? 'touchmove' : 'mousemove', handleMove, { passive: false });
-    document.addEventListener(isTouch ? 'touchend' : 'mouseup', handleEnd);
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
 };
+
 
 // 마우스와 터치 둘 다 감시하도록 설정
 wrap.addEventListener('mousedown', handleStart);
