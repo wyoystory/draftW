@@ -67,7 +67,7 @@
 .full-color-picker::-webkit-color-swatch { border: none; border-radius: 5px; }
 
         /* 사이드바 */
-        .sidebar { width: 65px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 0; gap: 10px; flex-shrink: 0; z-index: 100; }
+        .sidebar { width: 65px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 0; gap: 10px; flex-shrink: 0; z-index: 10001 !important; }
 .logo-container { 
     width: 65px; 
     height: 60px; /* 이 값이 상단 툴바 높이와 같아야 합니다 */
@@ -93,7 +93,9 @@
     background: var(--bg-sidebar); 
     border-bottom: 1px solid var(--border); 
     box-sizing: border-box; /* 테두리를 높이 계산에 포함시켜 오차를 줄입니다 */
+z-index: 10000 !important;
 }
+.tool-popup, .asset-popup { z-index: 10005 !important; }
 
         /* 도구 그룹 및 팝업 */
         .tool-group { display: flex; align-items: center; gap: 8px; border-right: 1px solid var(--border); padding-right: 12px; position: relative; }
@@ -498,8 +500,6 @@ user-select: text;         /* 편집 중엔 글자 드래그 가능 */
     letter-spacing: 1px;
 }
 
-.sidebar { position: relative; }
-
 .tool-popup.side-style {
     left: 100% !important; /* 사이드바 바로 오른쪽에 밀착 */
     margin-left: 10px;
@@ -847,8 +847,15 @@ function resetZoom() {
 function setDrawMode(m) {
     mode = m;
     const isActive = (m === 'pen' || m === 'eraser');
-    drawLayer.classList.toggle('active', isActive);
-    
+// 1. 캔버스 레이어 활성화/비활성화
+    const dl = document.getElementById('draw-layer');
+    if (isActive) {
+        dl.classList.add('active');
+        dl.style.pointerEvents = 'auto';
+    } else {
+        dl.classList.remove('active');
+        dl.style.pointerEvents = 'none'; // 메뉴 클릭이 가능해짐
+    }
     // 버튼 활성화 표시
     document.getElementById('m-pen')?.classList.toggle('active', m === 'pen');
     document.getElementById('m-eraser')?.classList.toggle('active', m === 'eraser');
@@ -1216,9 +1223,10 @@ function deselectAll(e) {
     selected = null;
 }
 
-// 바깥 클릭 시 닫기 (이벤트 전파 처리 완료)
-window.addEventListener('mousedown', (e) => {
+window.addEventListener('pointerdown', (e) => {
+    // 클릭한 대상이 팝업 내부이거나 버튼이면 닫지 않음
     if(e.target.closest('.asset-popup') || e.target.closest('.tool-popup') || e.target.closest('.btn')) return;
+    
     document.querySelectorAll('.tool-popup, .asset-popup').forEach(p => {
         p.classList.remove('active');
         p.style.display = 'none';
